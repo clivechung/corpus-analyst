@@ -1,5 +1,3 @@
-# corpus-analyst
-Containerized corpus analysis and RAG system for diverse domains (finance, literature, technical). Powered by DuckDB lakehouse, LangGraph, and Ragas eval.
 # corpus-analyst (Multi-Domain Containerized RAG Platform)
 
 A containerized, horizontally scalable, zero-vectorDB corpus analysis and Retrieval-Augmented Generation (RAG) platform powered by DuckDB Lakehouse, Azure Edge Blob, LangGraph, and Ragas.
