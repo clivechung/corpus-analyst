@@ -1,6 +1,7 @@
 # Multi-Domain Containerized RAG Platform — Feature List
 
 > **Source PRD:** [ducklake-rag-prd.md](file:///home/cc/ws/corpus-analyst/ducklake-rag-prd.md) (Version 1.0.0)  
+> **Source PRD:** [corpus-analyst-prd.md](file:///home/cc/ws/corpus-analyst/corpus-analyst-prd.md) (Version 1.0.0)  
 > **Target Environment:** Local Docker Compose / Kubernetes (HPA-Ready) / Linux  
 > **Core Architecture:** Zero-VectorDB DuckDB Lakehouse, Azure Edge Blob / Azurite, Unstructured Adaptive Chunking, LangGraph, Ragas  
 

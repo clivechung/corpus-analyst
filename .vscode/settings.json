@@ -1,0 +1,9 @@
+{
+  "git.enabled": true,
+  "git.autorefresh": false,
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/.agents/**": true,
+    "**/.antigravity/**": true
+  }
+}

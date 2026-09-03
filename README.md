@@ -66,10 +66,12 @@ flowchart TD
 ## Implementation Roadmap & Feature Progress
 
 > Detailed specifications, deliverables, and test criteria are tracked in [feature-list.md](file:///home/cc/ws/corpus-analyst/feature-list.md) and [ducklake-rag-prd.md](file:///home/cc/ws/corpus-analyst/ducklake-rag-prd.md).
+> Detailed specifications, deliverables, and test criteria are tracked in [feature-list.md](file:///home/cc/ws/corpus-analyst/feature-list.md) and [corpus-analyst-prd.md](file:///home/cc/ws/corpus-analyst/corpus-analyst-prd.md).
 
 ### Phase Status Overview
 
 - [ ] **Phase 1: Initial Directory Structure & Core Scaffolding** (0/2 features completed)
+- [x] **Phase 1: Initial Directory Structure & Core Scaffolding** (2/2 features completed)
 - [ ] **Phase 2: Basic Services in Compose** (0/4 features completed)
 - [ ] **Phase 3: Ingest Path** (0/4 features completed)
 - [ ] **Phase 4: Chunk (Parsing & Adaptive Splitting)** (0/2 features completed)
@@ -83,8 +85,8 @@ flowchart TD
 ### Detailed Feature Checklist
 
 #### Phase 1: Initial Directory Structure & Core Scaffolding
-- [ ] `FND-01`: **Workspace Scaffolding & Directory Setup** — Modular directory layout (`src/`, `docker/`, `config/`, `data/`, `ui/`, `tests/`), `.env.example`, `.dockerignore`, and package management via `pyproject.toml`.
-- [ ] `FND-02`: **Shared Pydantic Schemas & Settings Core** — Common data contracts (`Chunk`, `DocumentMetadata`, `QueryRequest`, `QueryResponse`, `RetrievedContextChunk`) and unified configuration loader (`config.py`, `config.yaml`).
+- [x] `FND-01`: **Workspace Scaffolding & Directory Setup** — Modular directory layout (`src/`, `docker/`, `config/`, `data/`, `ui/`, `tests/`), `.env.example`, `.dockerignore`, and package management via `pyproject.toml`.
+- [x] `FND-02`: **Shared Pydantic Schemas & Settings Core** — Common data contracts (`Chunk`, `DocumentMetadata`, `QueryRequest`, `QueryResponse`, `RetrievedContextChunk`) and unified configuration loader (`config.py`, `config.yaml`).
 
 #### Phase 2: Basic Services in Compose
 - [ ] `INF-01`: **Multi-Container Docker Compose Topology** — 5-service orchestration mesh (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
@@ -126,3 +128,4 @@ flowchart TD
 #### Phase 8: Evaluation & CI/CD Quality Gate (Day 2)
 - [ ] `EVL-01`: **Synthetic Golden Testset Generator** — Ragas-powered testset generator creating 30–50 domain QA pairs across diverse reasoning evolutions.
 - [ ] `EVL-02`: **Automated RAG Quality Gate & CI/CD CLI** — Evaluation CLI (`sec-rag eval`) computing Faithfulness, Answer Relevancy, and Context Precision/Recall against target thresholds.
+
