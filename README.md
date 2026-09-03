@@ -18,11 +18,11 @@ Enterprises and researchers increasingly rely on Retrieval-Augmented Generation 
 
 ## Key Capabilities & Features
 
-- **Zero-VectorDB Data Lakehouse**: Embeddings are stored directly in Hive-partitioned columnar Parquet files (`domain={domain}/year={YYYY}/month={MM}/day={DD}/`) synced to an Azure Edge Blob / Azurite storage emulator. Zero external vector database infrastructure required.
+- **Zero-VectorDB Data Lakehouse**: Embeddings are stored directly in Hive-partitioned columnar Parquet files (`domain={domain}/year={YYYY}/month={MM}/day={DD}/`) synced to an Azure Edge Blob storage container ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)). Zero external vector database infrastructure required.
 - **In-Process High-Performance DuckDB Vector Search**: Leverages native DuckDB vector similarity scanning with Hive partition pruning and metadata push-down predicates, delivering sub-second retrieval over local and edge lakehouses.
 - **Structural Document Parsing & Adaptive Chunking**: Uses `unstructured` to preserve document hierarchy and HTML tabular structures (`is_table = true`), coupled with an adaptive recursive token splitter bounded to 512 tokens with sliding-window overlap.
 - **Pluggable Domain Embeddings**: Runtime-configurable embedding registry supporting domain-specialized models for Finance (`BAAI/bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General corpora (`bge-large-en-v1.5`).
-- **Containerized Microservice Mesh**: Turnkey Docker Compose topology featuring an Nginx ingress reverse proxy, stateless FastAPI query engine (HPA-ready), background directory-watcher ingestion daemon, Azurite edge blob emulator, and an interactive Streamlit research UI.
+- **Containerized Microservice Mesh**: Turnkey Docker Compose topology featuring an Nginx ingress reverse proxy, stateless FastAPI query engine (HPA-ready), background directory-watcher ingestion daemon, Azure Edge Blob container, and an interactive Streamlit research UI.
 - **Dual-Mode LLM Inference**: Grounded synthesis with traceable citations via Google Gemini (`google-genai`), with an offline Ollama local LLM fallback option.
 - **Agentic Multi-Hop Reasoning (Day 2)**: LangGraph state graph with query decomposition, self-correcting relevance grading, and FlashRank cross-encoder re-ranking for multi-document comparative synthesis.
 - **Automated RAG Evaluation & CI/CD Quality Gates (Day 2)**: Synthetic golden testset generation and automated evaluation CLI using Ragas measuring Faithfulness, Answer Relevancy, and Context Precision/Recall.
@@ -45,7 +45,7 @@ flowchart TD
         Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder\n(Finance / Literature / General)"]
         Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink\nyear=YYYY/month=MM/day=DD"]
 
-        ParquetWriter --> EdgeBlob[("Azure Edge Blob / Azurite Container\n(Storage Emulator)")]
+        ParquetWriter --> EdgeBlob[("Azure Edge Blob Container\n(mcr.microsoft.com/azure-blob-storage)")]
         ParquetWriter --> LocalMount[("Shared Lakehouse Volume\n(/data/lake)")]
 
         LocalMount -.->|Read-Only Shared Mount / Blob Sync| QueryEngine
@@ -92,7 +92,8 @@ flowchart TD
 - [ ] `INF-01`: **Multi-Container Docker Compose Topology** — 5-service orchestration mesh (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
 - [ ] `INF-02`: **Nginx Ingress Reverse Proxy & WebSockets** — Port 80 ingress proxy with WebSocket upgrades for Streamlit and unified `/health` route.
 - [ ] `EMB-02`: **Persistent Model Cache Volume** — Shared Docker volume `model_cache` mounted to `/root/.cache/huggingface` to eliminate redundant weight downloads.
-- [ ] `LAK-02`: **Azure Edge Blob / Azurite Emulator Provisioning** — Local Azurite blob emulator container initialization and persistent `sec-filings-lake` container.
+- [ ] `LAK-02`: **Azure Edge Blob Container Provisioning** — Local Azure Blob Storage on IoT Edge container initialization ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) and persistent `sec-filings-lake` container.
+- [ ] `LAK-02`: **Azure Edge Blob Container Provisioning** — Local Azure Blob Storage on IoT Edge container initialization ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) backed by host-mounted `./data/lake` and persistent `corpus-lake` container.
 
 #### Phase 3: Ingest Path
 - [ ] `ING-01`: **Automated Drop-Directory Watcher** — Background daemon using `watchdog` monitoring `/data/incoming` with complete write detection.
@@ -107,7 +108,8 @@ flowchart TD
 #### Phase 5: Embedding & Lakehouse Storage
 - [ ] `EMB-01`: **Dynamic Domain Embedding Registry** — Pluggable runtime registry supporting Finance (`bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General models.
 - [ ] `LAK-01`: **Hive-Partitioned Parquet Sink** — Columnar PyArrow sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/` with dense vector arrays.
-- [ ] `LAK-02s`: **Parquet Edge Blob Sync Pipeline** — Blob synchronization pipeline pushing partitioned Parquet chunks to Azurite Edge Blob (`sec-filings-lake`).
+- [ ] `LAK-02s`: **Parquet Edge Blob Sync Pipeline** — Blob synchronization pipeline pushing partitioned Parquet chunks to Azure Edge Blob (`sec-filings-lake`).
+- [ ] `LAK-02s`: **Parquet Edge Blob Sync Pipeline** — Blob synchronization pipeline pushing partitioned Parquet chunks to Azure Edge Blob (`corpus-lake`).
 
 #### Phase 6: Retrieval & Serving (DuckDB Query Engine)
 - [ ] `QRY-01`: **Native DuckDB Parquet Vector Search** — In-process vector similarity search directly over Parquet files via `array_cosine_similarity`.

@@ -74,7 +74,8 @@ flowchart TD
   * **`INF-01`**: Multi-container Compose topology (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
   * **`INF-02`**: Nginx Ingress reverse proxy with WebSocket support and unified `/health` route.
   * **`EMB-02`**: Persistent Docker model cache volume (`model_cache:/root/.cache/huggingface`).
-  * **`LAK-02` (Base)**: Azurite emulator container provisioning and blob container initialization (`sec-filings-lake`).
+  * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) and container initialization (`sec-filings-lake`).
+  * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) backed by host-mounted `./data/lake` and container initialization (`corpus-lake`).
 * **Deliverables & Paths**:
   * [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml)
   * [`docker/nginx/default.conf`](file:///home/cc/ws/corpus-analyst/docker/nginx/default.conf)
@@ -121,7 +122,8 @@ flowchart TD
 * **Features**:
   * **`EMB-01`**: Dynamic domain embedding registry (`finance`, `literature`, `general`) with batch inference and local weight caching.
   * **`LAK-01`**: Hive-partitioned Parquet sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/{chunk_batch_uuid}.parquet` with vector arrays.
-  * **`LAK-02s`**: Parquet chunk synchronization to Azurite Edge Blob container (`sec-filings-lake`).
+  * **`LAK-02s`**: Parquet chunk synchronization to Azure Edge Blob container (`sec-filings-lake`).
+  * **`LAK-02s`**: Parquet chunk synchronization to Azure Edge Blob container (`corpus-lake`).
 * **Deliverables & Paths**:
   * [`src/ingestion/embedder.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/embedder.py)
   * [`src/ingestion/parquet_sink.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/parquet_sink.py)
@@ -184,7 +186,7 @@ flowchart TD
 | **`INF-01`** | Infrastructure | Multi-Container Docker Compose Topology | Phase 2 | Critical | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) |
 | **`INF-02`** | Infrastructure | Nginx Ingress Reverse Proxy & WebSockets | Phase 2 | High | [`docker/nginx/default.conf`](file:///home/cc/ws/corpus-analyst/docker/nginx/default.conf) |
 | **`EMB-02`** | Embedding Engine | Persistent Model Cache Volume | Phase 2 | High | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) (`model_cache`) |
-| **`LAK-02`** | Lakehouse Storage | Azure Edge Blob / Azurite Emulator Provisioning | Phase 2 | High | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) (`edgeblob`) |
+| **`LAK-02`** | Lakehouse Storage | Azure Edge Blob Container Provisioning | Phase 2 | High | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) (`edgeblob`) |
 | **`ING-01`** | Ingestion & Parsing | Automated Drop-Directory Watcher | Phase 3 | High | [`src/ingestion/watcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/watcher.py) |
 | **`ING-02`** | Ingestion & Parsing | Automated SEC EDGAR Downloader | Phase 3 | Medium | [`src/ingestion/sec_fetcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/sec_fetcher.py) |
 | **`ING-05`** | Ingestion & Parsing | Processing Lifecycle & Dead-Letter Handling | Phase 3 | Medium | [`src/ingestion/watcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/watcher.py) |
@@ -253,11 +255,12 @@ flowchart TD
   * Shared Docker volume `model_cache` mounted to `/root/.cache/huggingface`.
   * Eliminates model weight re-downloading across container rebuilds and restarts.
 
-#### `LAK-02`: Azure Edge Blob / Azurite Emulator Provisioning
+#### `LAK-02`: Azure Edge Blob Container Provisioning
 * **Description**: Cloud-native edge blob synchronization for remote or hybrid lakehouse deployment.
 * **Capabilities**:
-  * Local emulation via Azurite container (`mcr.microsoft.com/azure-storage/azurite:latest`).
+  * Edge blob container via Azure Blob Storage on IoT Edge ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)).
   * Named blob container `sec-filings-lake` persisted across container runs.
+  * Named blob container `corpus-lake` backed by host-mounted `./data/lake`.
 
 ---
 

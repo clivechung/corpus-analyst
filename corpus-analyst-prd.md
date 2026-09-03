@@ -71,6 +71,7 @@ The environment must boot via a single `docker-compose.yml` defining the followi
 * **Image**: `mcr.microsoft.com/azure-storage/azurite:latest` (or `mcr.microsoft.com/azure-blob-storage:latest`)
 * **Ports**: `10000:10000` (Internal Docker network + optionally host for debugging).
 * **Storage Volume**: Named volume `edgeblob_data:/data` mounted to persist blob containers (e.g., `sec-filings-lake`).
+* **Storage Volume**: Host-mounted directory `./data/lake:/data` mounted to persist blob containers (e.g., `corpus-lake`).
 
 ### 3.3 `ingestion-runner` (Directory Scraper & Ingestion Pipeline)
 * **Role**: Daemon process monitoring `/data/incoming`.

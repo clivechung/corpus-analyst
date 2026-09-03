@@ -84,6 +84,7 @@ class StorageSettings(BaseModel):
     """Azure Edge Blob / Azurite emulator configuration."""
 
     azure_container_name: str = Field(default="sec-filings-lake", description="Blob container name")
+    azure_container_name: str = Field(default="corpus-lake", description="Blob container name")
     azurite_emulator_enabled: bool = Field(default=True, description="Flag for local Azurite emulator")
     azure_storage_connection_string: str = Field(
         default="", description="Azure blob connection string (or Azurite dev connection)"

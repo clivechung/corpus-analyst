@@ -19,6 +19,7 @@ chunking:
 
 storage:
   azure_container_name: sec-filings-lake
+  azure_container_name: corpus-lake
   azurite_emulator_enabled: true
 
 query:
