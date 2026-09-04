@@ -81,13 +81,13 @@ class ChunkingSettings(BaseModel):
 
 
 class StorageSettings(BaseModel):
-    """Azure Edge Blob / Azurite emulator configuration."""
+    """Pluggable lakehouse storage backend configuration."""
 
-    azure_container_name: str = Field(default="sec-filings-lake", description="Blob container name")
-    azure_container_name: str = Field(default="corpus-lake", description="Blob container name")
-    azurite_emulator_enabled: bool = Field(default=True, description="Flag for local Azurite emulator")
+    provider: str = Field(default="localfs", description="Storage provider ('localfs' or 'azure_blob')")
+    local_path: str = Field(default="/data/lake", description="Base path for localfs lakehouse storage")
+    azure_container_name: str = Field(default="corpus-lake", description="Target container for cloud Azure Blob")
     azure_storage_connection_string: str = Field(
-        default="", description="Azure blob connection string (or Azurite dev connection)"
+        default="", description="Azure blob connection string (for cloud Azure Blob extension)"
     )
 
 

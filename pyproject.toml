@@ -7,7 +7,7 @@ name = "corpus-analyst"
 version = "0.1.0"
 description = "Containerized corpus analysis and RAG system for diverse domains powered by DuckDB lakehouse, LangGraph, and Ragas."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 authors = [
     { name = "Clive Chung", email = "clive.km.chung@gmail.com" }
@@ -28,6 +28,7 @@ dependencies = [
     "watchdog>=4.0.0",
     "httpx>=0.27.0",
     "typer>=0.12.0",
+    "azure-storage-blob>=12.19.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +43,7 @@ packages = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4"]

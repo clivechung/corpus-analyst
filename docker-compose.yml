@@ -1,0 +1,106 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-ingress
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - query-engine
+      - streamlit
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - corpus_net
+
+  ingestion-runner:
+    build:
+      context: .
+      dockerfile: docker/ingestion/Dockerfile
+    container_name: ingestion-runner
+    environment:
+      - CONFIG_PATH=/app/config/config.yaml
+      - MODELS_CONFIG_PATH=/app/config/models.json
+      - STORAGE_PROVIDER=localfs
+      - STORAGE_LOCAL_PATH=/data/lake
+      - DATA_INCOMING_PATH=/data/incoming
+      - DATA_PROCESSED_PATH=/data/processed
+      - DATA_FAILED_PATH=/data/failed
+      - DATA_LAKE_PATH=/data/lake
+    volumes:
+      - ./data:/data
+      - ./config:/app/config:ro
+      - model_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os, time; assert os.path.exists(\"/tmp/healthy\") and (time.time() - os.path.getmtime(\"/tmp/healthy\")) < 60' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - corpus_net
+
+  query-engine:
+    build:
+      context: .
+      dockerfile: docker/query_engine/Dockerfile
+    container_name: query-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - CONFIG_PATH=/app/config/config.yaml
+      - MODELS_CONFIG_PATH=/app/config/models.json
+      - STORAGE_PROVIDER=localfs
+      - STORAGE_LOCAL_PATH=/data/lake
+      - DATA_LAKE_PATH=/data/lake
+      - QUERY_ENGINE_HOST=0.0.0.0
+      - QUERY_ENGINE_PORT=8000
+    volumes:
+      - ./data/lake:/data/lake:ro
+      - ./config:/app/config:ro
+      - model_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/healthz\")' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - corpus_net
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/streamlit/Dockerfile
+    container_name: streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - QUERY_ENGINE_URL=http://query-engine:8000
+    volumes:
+      - ./data:/data
+      - ./config:/app/config:ro
+      - ./ui:/app/ui:ro
+    depends_on:
+      - query-engine
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8501/_stcore/health\")' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - corpus_net
+
+volumes:
+  model_cache:
+
+networks:
+  corpus_net:
+    driver: bridge
+

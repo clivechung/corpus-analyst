@@ -1,6 +1,6 @@
 # corpus-analyst (Multi-Domain Containerized RAG Platform)
 
-A containerized, horizontally scalable, zero-vectorDB corpus analysis and Retrieval-Augmented Generation (RAG) platform powered by DuckDB Lakehouse, Azure Edge Blob, LangGraph, and Ragas.
+A containerized, horizontally scalable, zero-vectorDB corpus analysis and Retrieval-Augmented Generation (RAG) platform powered by DuckDB Lakehouse, Pluggable Lakehouse Storage (LocalFS / Cloud Azure Blob), LangGraph, and Ragas.
 
 ## Overview & Motivation
 
@@ -18,11 +18,11 @@ Enterprises and researchers increasingly rely on Retrieval-Augmented Generation 
 
 ## Key Capabilities & Features
 
-- **Zero-VectorDB Data Lakehouse**: Embeddings are stored directly in Hive-partitioned columnar Parquet files (`domain={domain}/year={YYYY}/month={MM}/day={DD}/`) synced to an Azure Edge Blob storage container ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)). Zero external vector database infrastructure required.
-- **In-Process High-Performance DuckDB Vector Search**: Leverages native DuckDB vector similarity scanning with Hive partition pruning and metadata push-down predicates, delivering sub-second retrieval over local and edge lakehouses.
+- **Zero-VectorDB Data Lakehouse**: Embeddings are stored directly in Hive-partitioned columnar Parquet files (`domain={domain}/year={YYYY}/month={MM}/day={DD}/`) managed via pluggable storage backends (`LocalFS` lakehouse default, with cloud Azure Blob extension capability). Zero external vector database infrastructure required.
+- **In-Process High-Performance DuckDB Vector Search**: Leverages native DuckDB vector similarity scanning with Hive partition pruning and metadata push-down predicates, delivering sub-second retrieval over local and cloud lakehouses.
 - **Structural Document Parsing & Adaptive Chunking**: Uses `unstructured` to preserve document hierarchy and HTML tabular structures (`is_table = true`), coupled with an adaptive recursive token splitter bounded to 512 tokens with sliding-window overlap.
 - **Pluggable Domain Embeddings**: Runtime-configurable embedding registry supporting domain-specialized models for Finance (`BAAI/bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General corpora (`bge-large-en-v1.5`).
-- **Containerized Microservice Mesh**: Turnkey Docker Compose topology featuring an Nginx ingress reverse proxy, stateless FastAPI query engine (HPA-ready), background directory-watcher ingestion daemon, Azure Edge Blob container, and an interactive Streamlit research UI.
+- **Containerized Microservice Mesh**: Turnkey Docker Compose topology featuring an Nginx ingress reverse proxy, stateless FastAPI query engine (HPA-ready), background directory-watcher ingestion daemon, and an interactive Streamlit research UI.
 - **Dual-Mode LLM Inference**: Grounded synthesis with traceable citations via Google Gemini (`google-genai`), with an offline Ollama local LLM fallback option.
 - **Agentic Multi-Hop Reasoning (Day 2)**: LangGraph state graph with query decomposition, self-correcting relevance grading, and FlashRank cross-encoder re-ranking for multi-document comparative synthesis.
 - **Automated RAG Evaluation & CI/CD Quality Gates (Day 2)**: Synthetic golden testset generation and automated evaluation CLI using Ragas measuring Faithfulness, Answer Relevancy, and Context Precision/Recall.
@@ -45,11 +45,9 @@ flowchart TD
         Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder\n(Finance / Literature / General)"]
         Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink\nyear=YYYY/month=MM/day=DD"]
 
-        ParquetWriter --> EdgeBlob[("Azure Edge Blob Container\n(mcr.microsoft.com/azure-blob-storage)")]
-        ParquetWriter --> LocalMount[("Shared Lakehouse Volume\n(/data/lake)")]
+        ParquetWriter --> LocalLake[("Pluggable Lakehouse Storage\n(LocalFS: /data/lake / Cloud Azure Blob)")]
 
-        LocalMount -.->|Read-Only Shared Mount / Blob Sync| QueryEngine
-        EdgeBlob -.->|Blob Sync / Shared Lakehouse| QueryEngine
+        LocalLake -.->|Read-Only Shared Mount (:ro)| QueryEngine
 
         QueryEngine -->|"Day 1: Direct Gemini\nDay 2: LangGraph Agent"| LLM["Gemini API (google-genai) /\nDay 2: Local Ollama"]
         Streamlit -->|HTTP REST| QueryEngine
@@ -65,14 +63,12 @@ flowchart TD
 
 ## Implementation Roadmap & Feature Progress
 
-> Detailed specifications, deliverables, and test criteria are tracked in [feature-list.md](file:///home/cc/ws/corpus-analyst/feature-list.md) and [ducklake-rag-prd.md](file:///home/cc/ws/corpus-analyst/ducklake-rag-prd.md).
 > Detailed specifications, deliverables, and test criteria are tracked in [feature-list.md](file:///home/cc/ws/corpus-analyst/feature-list.md) and [corpus-analyst-prd.md](file:///home/cc/ws/corpus-analyst/corpus-analyst-prd.md).
 
 ### Phase Status Overview
 
-- [ ] **Phase 1: Initial Directory Structure & Core Scaffolding** (0/2 features completed)
 - [x] **Phase 1: Initial Directory Structure & Core Scaffolding** (2/2 features completed)
-- [ ] **Phase 2: Basic Services in Compose** (0/4 features completed)
+- [x] **Phase 2: Basic Services in Compose** (4/4 features completed)
 - [ ] **Phase 3: Ingest Path** (0/4 features completed)
 - [ ] **Phase 4: Chunk (Parsing & Adaptive Splitting)** (0/2 features completed)
 - [ ] **Phase 5: Embedding & Lakehouse Storage** (0/3 features completed)
@@ -89,11 +85,10 @@ flowchart TD
 - [x] `FND-02`: **Shared Pydantic Schemas & Settings Core** — Common data contracts (`Chunk`, `DocumentMetadata`, `QueryRequest`, `QueryResponse`, `RetrievedContextChunk`) and unified configuration loader (`config.py`, `config.yaml`).
 
 #### Phase 2: Basic Services in Compose
-- [ ] `INF-01`: **Multi-Container Docker Compose Topology** — 5-service orchestration mesh (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
-- [ ] `INF-02`: **Nginx Ingress Reverse Proxy & WebSockets** — Port 80 ingress proxy with WebSocket upgrades for Streamlit and unified `/health` route.
-- [ ] `EMB-02`: **Persistent Model Cache Volume** — Shared Docker volume `model_cache` mounted to `/root/.cache/huggingface` to eliminate redundant weight downloads.
-- [ ] `LAK-02`: **Azure Edge Blob Container Provisioning** — Local Azure Blob Storage on IoT Edge container initialization ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) and persistent `sec-filings-lake` container.
-- [ ] `LAK-02`: **Azure Edge Blob Container Provisioning** — Local Azure Blob Storage on IoT Edge container initialization ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) backed by host-mounted `./data/lake` and persistent `corpus-lake` container.
+- [x] `INF-01`: **Multi-Container Docker Compose Topology** — 4-service orchestration mesh (`nginx`, `ingestion-runner`, `query-engine`, `streamlit`).
+- [x] `INF-02`: **Nginx Ingress Reverse Proxy & WebSockets** — Port 80 ingress proxy with WebSocket upgrades for Streamlit and unified `/health` route.
+- [x] `EMB-02`: **Persistent Model Cache Volume** — Shared Docker volume `model_cache` mounted to `/root/.cache/huggingface` to eliminate redundant weight downloads.
+- [x] `LAK-02`: **Pluggable Lakehouse Storage Backend** — Extensible `StorageBackendProtocol` with high-performance `LocalStorageBackend` over `./data/lake` and future cloud Azure Blob Storage adapter.
 
 #### Phase 3: Ingest Path
 - [ ] `ING-01`: **Automated Drop-Directory Watcher** — Background daemon using `watchdog` monitoring `/data/incoming` with complete write detection.
@@ -108,8 +103,7 @@ flowchart TD
 #### Phase 5: Embedding & Lakehouse Storage
 - [ ] `EMB-01`: **Dynamic Domain Embedding Registry** — Pluggable runtime registry supporting Finance (`bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General models.
 - [ ] `LAK-01`: **Hive-Partitioned Parquet Sink** — Columnar PyArrow sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/` with dense vector arrays.
-- [ ] `LAK-02s`: **Parquet Edge Blob Sync Pipeline** — Blob synchronization pipeline pushing partitioned Parquet chunks to Azure Edge Blob (`sec-filings-lake`).
-- [ ] `LAK-02s`: **Parquet Edge Blob Sync Pipeline** — Blob synchronization pipeline pushing partitioned Parquet chunks to Azure Edge Blob (`corpus-lake`).
+- [ ] `LAK-02s`: **Parquet Lakehouse Storage Pipeline** — Pluggable storage pipeline writing partitioned Parquet chunks to LocalFS (`corpus-lake` root) with cloud Azure Blob extension capability.
 
 #### Phase 6: Retrieval & Serving (DuckDB Query Engine)
 - [ ] `QRY-01`: **Native DuckDB Parquet Vector Search** — In-process vector similarity search directly over Parquet files via `array_cosine_similarity`.
@@ -130,4 +124,104 @@ flowchart TD
 #### Phase 8: Evaluation & CI/CD Quality Gate (Day 2)
 - [ ] `EVL-01`: **Synthetic Golden Testset Generator** — Ragas-powered testset generator creating 30–50 domain QA pairs across diverse reasoning evolutions.
 - [ ] `EVL-02`: **Automated RAG Quality Gate & CI/CD CLI** — Evaluation CLI (`sec-rag eval`) computing Faithfulness, Answer Relevancy, and Context Precision/Recall against target thresholds.
+
+---
+
+## Quickstart & Usage Guide
+
+### 1. Environment Setup
+
+Copy the example environment configuration:
+```bash
+cp .env.example .env
+```
+*(Optional)* Add your `GEMINI_API_KEY` in `.env` if you want to test cloud LLM synthesis, or leave the default settings to use local Ollama / mock synthesis.
+
+### 2. Spinning Up the Platform (Docker Compose)
+
+Launch all 4 microservices with Docker Compose:
+```bash
+docker compose up -d --build
+```
+
+Verify that all services are up and healthy:
+```bash
+docker compose ps
+```
+
+Expected output:
+```
+NAME               IMAGE                             STATUS                   PORTS
+ingestion-runner   corpus-analyst-ingestion-runner   Up (healthy)             
+nginx-ingress      nginx:alpine                      Up (healthy)             0.0.0.0:80->80/tcp
+query-engine       corpus-analyst-query-engine       Up (healthy)             0.0.0.0:8000->8000/tcp
+streamlit          corpus-analyst-streamlit          Up (healthy)             0.0.0.0:8501->8501/tcp
+```
+
+To view live logs from any service:
+```bash
+# Follow all container logs
+docker compose logs -f
+
+# Follow the ingestion daemon runner
+docker logs -f ingestion-runner
+```
+
+### 3. Accessing the Streamlit UI & APIs
+
+Once the containers are running, access the interfaces:
+
+| Service / Interface | URL | Description |
+| :--- | :--- | :--- |
+| **Streamlit Research UI (via Ingress)** | [**http://localhost**](http://localhost) | Main unified dashboard (Chat, Ingestion Monitor, Lakehouse Explorer, Settings). |
+| **Streamlit Research UI (Direct Port)** | [**http://localhost:8501**](http://localhost:8501) | Direct UI port access. |
+| **Query Engine REST API Docs** | [**http://localhost:8000/docs**](http://localhost:8000/docs) | Interactive OpenAPI (Swagger) documentation. |
+| **Query Engine Health Endpoint** | [**http://localhost/api/v1/health**](http://localhost/api/v1/health) | Query engine liveness and metadata probe via Ingress. |
+| **Nginx Ingress Health Probe** | [**http://localhost/health**](http://localhost/health) | Gateway health check probe (`200 OK`). |
+
+### 4. File Drop for Document Ingestion
+
+You can ingest documents into the platform in two ways:
+
+#### Option A: Direct File Drop (Background Ingestion Watcher)
+Drop raw document files (PDF, HTML, JSON, TXT) directly into the host-mounted incoming directory:
+```bash
+# Drop files for automated ingestion
+cp path/to/sample_filing.pdf ./data/incoming/
+```
+The **`ingestion-runner`** daemon automatically:
+1. Detects newly added files in `/data/incoming`.
+2. Initiates structural parsing, adaptive chunking, and embedding.
+3. Writes Hive-partitioned Parquet files into the lakehouse at `./data/lake/`.
+4. Moves successfully processed files to `./data/processed/` (or `./data/failed/` if parsing errors occur).
+
+#### Option B: Drag-and-Drop via Streamlit UI
+1. Navigate to [**http://localhost**](http://localhost) in your browser.
+2. Select the **Ingestion Monitor** tab.
+3. Drag and drop documents directly into the upload pane, or trigger on-demand SEC EDGAR downloads for automated ticker retrieval.
+
+### 5. Querying the Corpus
+
+#### Via Streamlit UI
+Open the **Research Assistant** chat tab at [**http://localhost**](http://localhost), choose your active domain profile (`Finance`, `Literature`, or `General`), and submit your question. The assistant provides grounded answers with expandable citation cards showing exact source files, similarity scores, and excerpts.
+
+#### Via Query Engine REST API
+Send retrieval or answer generation queries directly to the query engine:
+```bash
+curl -X POST http://localhost/api/v1/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What are the key risk factors described in the filings?",
+    "domain": "finance",
+    "top_k": 5
+  }'
+```
+
+### 6. Shutting Down the Platform
+
+To stop and remove containers cleanly:
+```bash
+docker compose down
+```
+Data in `./data/lake`, `./data/incoming`, and HuggingFace weights in the `model_cache` volume persist safely across restarts.
 
