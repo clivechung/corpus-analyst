@@ -221,3 +221,8 @@ __marimo__/
 .agents/
 .antigravity/
 .bin/
+
+# Local ingestion lake, staging, and processed data
+/data/*
+!/data/**/.gitkeep
+

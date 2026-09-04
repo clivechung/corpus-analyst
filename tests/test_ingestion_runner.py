@@ -64,6 +64,28 @@ class TestIngestionRunnerSeam(unittest.TestCase):
         runner._signal_handler(signal.SIGTERM, None)
         self.assertTrue(runner.is_stopped)
 
+    def test_runner_integrates_watcher_and_lifecycle(self) -> None:
+        """Verify runner initializes IncomingWatcher and drives watcher cycle."""
+        mock_watcher = mock.MagicMock()
+        mock_watcher.is_running = False
+        mock_lifecycle = mock.MagicMock()
+
+        runner = IngestionRunner(
+            heartbeat_file=str(self.heartbeat_path),
+            watcher=mock_watcher,
+            lifecycle_manager=mock_lifecycle,
+            poll_interval_seconds=0.01,
+        )
+
+        # First cycle should start watcher and scan incoming
+        runner.run_cycle()
+        mock_watcher.start.assert_called_once()
+        mock_watcher.scan_incoming.assert_called_once()
+
+        # Stop should stop watcher
+        runner.request_stop()
+        mock_watcher.stop.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

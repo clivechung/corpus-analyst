@@ -9,9 +9,12 @@ from pydantic import ValidationError
 from src.common.models import (
     Chunk,
     Citation,
+    DeadLetterRecord,
     DocumentMetadata,
     DomainType,
     FormType,
+    IngestionStatus,
+    IngestionSummary,
     QueryRequest,
     QueryResponse,
     RetrievedContextChunk,
@@ -133,6 +136,39 @@ class TestModelsSeam(unittest.TestCase):
         self.assertEqual(resp_dict["citations"][0]["chunk_id"], retrieved_chunk.chunk_id)
         self.assertEqual(len(resp_dict["retrieved_chunks"]), 1)
         self.assertEqual(resp_dict["model_used"], "gemini-2.5-flash")
+
+    def test_ingestion_lifecycle_contracts(self) -> None:
+        """Verify IngestionStatus enum, DeadLetterRecord, and IngestionSummary serialization."""
+        self.assertEqual(IngestionStatus.PENDING, "pending")
+        self.assertEqual(IngestionStatus.PROCESSING, "processing")
+        self.assertEqual(IngestionStatus.COMPLETED, "completed")
+        self.assertEqual(IngestionStatus.FAILED, "failed")
+
+        dead_letter = DeadLetterRecord(
+            source_filename="corrupted_report.pdf",
+            file_size_bytes=2048,
+            error_type="ValueError",
+            error_message="Invalid PDF header signature",
+            stack_trace="Traceback: ...\nValueError: Invalid PDF header signature",
+            metadata={"ticker": "XYZ", "attempt": 1},
+        )
+        dl_dict = dead_letter.model_dump()
+        self.assertEqual(dl_dict["source_filename"], "corrupted_report.pdf")
+        self.assertEqual(dl_dict["error_type"], "ValueError")
+        self.assertIn("timestamp", dl_dict)
+
+        summary = IngestionSummary(
+            file_path="/data/incoming/nvda-10k.htm",
+            status=IngestionStatus.COMPLETED,
+            duration_seconds=1.23,
+            chunk_count=42,
+            token_total=12800,
+        )
+        sum_dict = summary.model_dump()
+        self.assertEqual(sum_dict["status"], "completed")
+        self.assertEqual(sum_dict["chunk_count"], 42)
+        self.assertEqual(sum_dict["token_total"], 12800)
+        self.assertIsNone(sum_dict["error_message"])
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir \
     pyyaml>=6.0.1 \
     watchdog>=4.0.0 \
     httpx>=0.27.0 \
+    typer>=0.12.0 \
     azure-storage-blob>=12.19.0
 
 COPY . /app

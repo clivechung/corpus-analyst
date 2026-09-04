@@ -140,6 +140,27 @@ chunking:
         settings = get_settings()
         self.assertIsInstance(settings, Settings)
 
+    def test_watcher_settings_defaults_and_env_overrides(self) -> None:
+        """Verify WatcherSettings defaults and environment variable overrides."""
+        settings = Settings()
+        self.assertEqual(settings.watcher.poll_interval_seconds, 1.0)
+        self.assertEqual(settings.watcher.write_detection_interval_seconds, 1.0)
+        self.assertEqual(settings.watcher.stability_checks, 2)
+        self.assertIn(".pdf", settings.watcher.supported_extensions)
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "WATCHER_POLL_INTERVAL": "2.5",
+                "WATCHER_WRITE_INTERVAL": "0.5",
+                "WATCHER_STABILITY_CHECKS": "3",
+            },
+        ):
+            loaded = Settings.load(config_path="/non/existent/path.yaml")
+            self.assertEqual(loaded.watcher.poll_interval_seconds, 2.5)
+            self.assertEqual(loaded.watcher.write_detection_interval_seconds, 0.5)
+            self.assertEqual(loaded.watcher.stability_checks, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

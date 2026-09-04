@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -47,6 +48,15 @@ class LLMProvider(str, Enum):
 
     GEMINI = "gemini"
     OLLAMA = "ollama"
+
+
+class IngestionStatus(str, Enum):
+    """Document lifecycle processing status."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 # -----------------------------------------------------------------------------
@@ -134,6 +144,36 @@ class Chunk(BaseModel):
             "embedding": self.embedding,
             "metadata_json": json.dumps(meta_payload),
         }
+
+
+class DeadLetterRecord(BaseModel):
+    """Dead-letter record schema logged when document processing fails."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="UTC timestamp when error occurred",
+    )
+    source_filename: str = Field(description="Name of the file that failed processing")
+    file_size_bytes: int = Field(ge=0, description="Size of the file in bytes")
+    error_type: str = Field(description="Exception class name")
+    error_message: str = Field(description="Human-readable error description")
+    stack_trace: str = Field(description="Full exception stack trace")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Extracted or context metadata")
+
+
+class IngestionSummary(BaseModel):
+    """Execution summary emitted after document lifecycle processing completes."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    file_path: str = Field(description="Path to processed file")
+    status: IngestionStatus | str = Field(description="Final processing lifecycle status")
+    duration_seconds: float = Field(ge=0.0, description="Processing duration in seconds")
+    chunk_count: int = Field(default=0, ge=0, description="Total chunks generated")
+    token_total: int = Field(default=0, ge=0, description="Total tokens across generated chunks")
+    error_message: str | None = Field(default=None, description="Error detail if failed")
 
 
 # -----------------------------------------------------------------------------

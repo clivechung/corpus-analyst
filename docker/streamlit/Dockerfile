@@ -8,7 +8,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN pip install --no-cache-dir \
     streamlit>=1.35.0 \
-    httpx>=0.27.0
+    httpx>=0.27.0 \
+    pydantic>=2.7.0 \
+    pyyaml>=6.0.1 \
+    typer>=0.12.0
 
 COPY . /app
 

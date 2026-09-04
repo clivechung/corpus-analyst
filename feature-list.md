@@ -97,9 +97,13 @@ flowchart TD
 * **Deliverables & Paths**:
   * [`src/ingestion/watcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/watcher.py)
   * [`src/ingestion/sec_fetcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/sec_fetcher.py)
-  * [`ui/app.py`](file:///home/cc/ws/corpus-analyst/ui/app.py) (Ingestion tab)
+  * [`ui/app.py`](file:///home/cc/ws/corpus-analyst/ui/app.py)
+  * [`ui/components/quant_theme.py`](file:///home/cc/ws/corpus-analyst/ui/components/quant_theme.py)
+  * [`ui/components/ingestion_service.py`](file:///home/cc/ws/corpus-analyst/ui/components/ingestion_service.py)
+  * [`ui/components/ingestion_view.py`](file:///home/cc/ws/corpus-analyst/ui/components/ingestion_view.py)
+  * [`tests/test_ui_ingestion.py`](file:///home/cc/ws/corpus-analyst/tests/test_ui_ingestion.py)
 * **Data Contracts**: Raw document intake (`.pdf`, `.htm`, `.html`, `.json`) placed in `/data/incoming/` $\to$ lifecycle status logged $\to$ queued for chunking.
-* **Verification**: Dropping a PDF into `/data/incoming` triggers processing log; SEC downloader fetches valid NVDA 10-K filing.
+* **Verification**: Dropping a PDF into `/data/incoming` triggers processing log; SEC downloader fetches valid NVDA 10-K filing; Streamlit UI manages queue telemetry and manual triggers.
 
 ---
 

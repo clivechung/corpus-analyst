@@ -34,6 +34,7 @@ services:
       - DATA_LAKE_PATH=/data/lake
     volumes:
       - ./data:/data
+      - ./src:/app/src
       - ./config:/app/config:ro
       - model_cache:/root/.cache/huggingface
     healthcheck:
@@ -82,8 +83,14 @@ services:
       - "8501:8501"
     environment:
       - QUERY_ENGINE_URL=http://query-engine:8000
+      - SEC_USER_AGENT=${SEC_USER_AGENT:-CorpusAnalystAdmin admin@corpus-analyst.local}
+      - DATA_INCOMING_PATH=/data/incoming
+      - DATA_PROCESSED_PATH=/data/processed
+      - DATA_FAILED_PATH=/data/failed
+      - DATA_LAKE_PATH=/data/lake
     volumes:
       - ./data:/data
+      - ./src:/app/src:ro
       - ./config:/app/config:ro
       - ./ui:/app/ui:ro
     depends_on:

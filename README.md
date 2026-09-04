@@ -69,7 +69,7 @@ flowchart TD
 
 - [x] **Phase 1: Initial Directory Structure & Core Scaffolding** (2/2 features completed)
 - [x] **Phase 2: Basic Services in Compose** (4/4 features completed)
-- [ ] **Phase 3: Ingest Path** (0/4 features completed)
+- [ ] **Phase 3: Ingest Path** (3/4 features completed)
 - [ ] **Phase 4: Chunk (Parsing & Adaptive Splitting)** (0/2 features completed)
 - [ ] **Phase 5: Embedding & Lakehouse Storage** (0/3 features completed)
 - [ ] **Phase 6: Retrieval, Query Engine & Serving** (0/8 features completed)
@@ -91,10 +91,11 @@ flowchart TD
 - [x] `LAK-02`: **Pluggable Lakehouse Storage Backend** — Extensible `StorageBackendProtocol` with high-performance `LocalStorageBackend` over `./data/lake` and future cloud Azure Blob Storage adapter.
 
 #### Phase 3: Ingest Path
-- [ ] `ING-01`: **Automated Drop-Directory Watcher** — Background daemon using `watchdog` monitoring `/data/incoming` with complete write detection.
-- [ ] `ING-02`: **Automated SEC EDGAR Downloader** — Fetcher for 10-K, 10-Q, and 8-K filings with SEC-compliant User-Agent headers and rate limiting.
-- [ ] `ING-05`: **Processing Lifecycle & Dead-Letter Handling** — Atomic moves to `/data/processed/` or `/data/failed/` with structured error trace logging.
+- [x] `ING-01`: **Automated Drop-Directory Watcher** — Background daemon using `watchdog` monitoring `/data/incoming` with complete write detection.
+- [x] `ING-02`: **Automated SEC EDGAR Downloader** — Fetcher for 10-K, 10-Q, and 8-K filings with SEC-compliant User-Agent headers and rate limiting.
+- [x] `ING-05`: **Processing Lifecycle & Dead-Letter Handling** — Atomic moves to `/data/processed/` or `/data/failed/` with structured error trace logging.
 - [ ] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Streamlit UI for drag-and-drop file uploads, queue status inspection, and on-demand SEC download triggers.
+- [x] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Professional Quant Trading Floor Streamlit interface featuring Bloomberg/Refinitiv Obsidian & Amber aesthetics, real-time queue telemetry HUD, order-ticket SEC EDGAR requisition, drag-and-drop intake dropbox with SHA-256 validation, and dead-letter quarantine triage.
 
 #### Phase 4: Chunk (Parsing & Adaptive Splitting)
 - [ ] `ING-03`: **Structural Parsing & Table Preservation** — Document element extraction via `unstructured`, preserving headings, sections, and HTML table representations (`is_table = true`).
@@ -195,10 +196,37 @@ The **`ingestion-runner`** daemon automatically:
 3. Writes Hive-partitioned Parquet files into the lakehouse at `./data/lake/`.
 4. Moves successfully processed files to `./data/processed/` (or `./data/failed/` if parsing errors occur).
 
-#### Option B: Drag-and-Drop via Streamlit UI
+#### Option B: Automated SEC EDGAR Downloader (CLI & Helper Script)
+Fetch 10-K, 10-Q, and 8-K filings directly into `./data/incoming` with native day-granularity date filtering and built-in SEC rate-limiting ($\le 10$ req/s).
+
+SEC EDGAR requires a compliant `User-Agent` header in the format `Sample Company Name AdminContact@domain.com`. You can provide this via the `SEC_USER_AGENT` environment variable or enter it when prompted:
+
+```bash
+# Set your SEC User-Agent header
+export SEC_USER_AGENT="CorpusAnalystAdmin admin@corpus-analyst.local"
+
+# Fetch a 10-K filing with day-granularity date range (YYYY-MM-DD):
+./scripts/fetch_sec_filings.sh --ticker NVDA --form 10-K --start-date 2024-01-01 --end-date 2024-03-31
+
+# Fetch recent 10-Q quarterly reports:
+./scripts/fetch_sec_filings.sh --ticker AAPL --form 10-Q --limit 2
+
+# Or run directly using Python CLI in container or locally:
+python -m src.ingestion.sec_fetcher --ticker MSFT --form 8-K --start-date 2024-06-01 --end-date 2024-06-30
+```
+Downloaded documents and their companion `.meta.json` metadata sidecars are placed directly into `./data/incoming/` where the ingestion watcher detects them and initiates the processing lifecycle.
+
+#### Option C: Drag-and-Drop via Streamlit UI
+#### Option C: Quant Trading Floor Dashboard (Streamlit UI)
 1. Navigate to [**http://localhost**](http://localhost) in your browser.
 2. Select the **Ingestion Monitor** tab.
 3. Drag and drop documents directly into the upload pane, or trigger on-demand SEC EDGAR downloads for automated ticker retrieval.
+2. Select the **INGESTION MONITOR (UI-02)** tab.
+3. Features available on the quant trading terminal:
+   - **Queue Telemetry HUD**: Real-time KPI tiles for incoming queue depth, settled corpus volume, dead-letter count, and failure rate.
+   - **SEC EDGAR Requisition Desk**: Quick-ticker selector (`NVDA`, `AAPL`, `MSFT`, `AMZN`, `GOOGL`, `META`, `TSLA`, `JPM`), form filter (`10-K`, `10-Q`, `8-K`), and day-granularity date filtering presets.
+   - **Direct Intake Dropbox**: Drag-and-drop document upload (`.pdf`, `.htm`, `.html`, `.json`, `.txt`) with real-time SHA-256 calculation and companion `.meta.json` sidecar generation.
+   - **Forensic Dead-Letter Drawer**: Interactive quarantine inspector with full error traceback viewing and one-click `[↺ RE-QUEUE FILE]` retry mechanism.
 
 ### 5. Querying the Corpus
 
