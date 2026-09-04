@@ -220,3 +220,4 @@ __marimo__/
 # Antigravity agent runtimes and caches
 .agents/
 .antigravity/
+.bin/

@@ -70,12 +70,15 @@ flowchart TD
 
 ### Phase 2: Basic Services in Compose
 * **Focus**: Stand up the multi-container Docker Compose infrastructure, ingress routing, persistent volumes, and service health checks.
+* **Focus**: Stand up the multi-container Docker Compose infrastructure, ingress routing, persistent volumes, pluggable LocalFS lakehouse storage, and service health checks.
 * **Features**:
   * **`INF-01`**: Multi-container Compose topology (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
+  * **`INF-01`**: Multi-container Compose topology (`nginx`, `ingestion-runner`, `query-engine`, `streamlit`).
   * **`INF-02`**: Nginx Ingress reverse proxy with WebSocket support and unified `/health` route.
   * **`EMB-02`**: Persistent Docker model cache volume (`model_cache:/root/.cache/huggingface`).
   * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) and container initialization (`sec-filings-lake`).
   * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) backed by host-mounted `./data/lake` and container initialization (`corpus-lake`).
+  * **`LAK-02` (Base)**: Pluggable lakehouse storage architecture (`LocalStorageBackend` targeting `./data/lake` with extensible adapter for cloud Azure Blob Storage).
 * **Deliverables & Paths**:
   * [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml)
   * [`docker/nginx/default.conf`](file:///home/cc/ws/corpus-analyst/docker/nginx/default.conf)
@@ -84,6 +87,9 @@ flowchart TD
   * [`docker/streamlit/Dockerfile`](file:///home/cc/ws/corpus-analyst/docker/streamlit/Dockerfile)
 * **Data Contracts**: Inter-container network aliases (`http://query-engine:8000`, `http://edgeblob:10000`, `http://streamlit:8501`).
 * **Verification**: `docker compose up -d` brings all 5 containers to healthy state; `curl http://localhost/health` returns 200 OK.
+  * [`src/common/storage.py`](file:///home/cc/ws/corpus-analyst/src/common/storage.py)
+* **Data Contracts**: Inter-container network aliases (`http://query-engine:8000`, `http://streamlit:8501`), LocalFS storage root (`/data/lake`).
+* **Verification**: `docker compose up -d` brings all 4 containers to healthy state; `wget -qO- http://localhost/health` returns 200 OK.
 
 ---
 
