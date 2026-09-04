@@ -95,6 +95,7 @@ flowchart TD
 - [x] `ING-02`: **Automated SEC EDGAR Downloader** — Fetcher for 10-K, 10-Q, and 8-K filings with SEC-compliant User-Agent headers and rate limiting.
 - [x] `ING-05`: **Processing Lifecycle & Dead-Letter Handling** — Atomic moves to `/data/processed/` or `/data/failed/` with structured error trace logging.
 - [ ] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Streamlit UI for drag-and-drop file uploads, queue status inspection, and on-demand SEC download triggers.
+- [x] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Professional Quant Trading Floor Streamlit interface featuring Bloomberg/Refinitiv Obsidian & Amber aesthetics, real-time queue telemetry HUD, order-ticket SEC EDGAR requisition, drag-and-drop intake dropbox with SHA-256 validation, and dead-letter quarantine triage.
 
 #### Phase 4: Chunk (Parsing & Adaptive Splitting)
 - [ ] `ING-03`: **Structural Parsing & Table Preservation** — Document element extraction via `unstructured`, preserving headings, sections, and HTML table representations (`is_table = true`).
@@ -216,9 +217,16 @@ python -m src.ingestion.sec_fetcher --ticker MSFT --form 8-K --start-date 2024-0
 Downloaded documents and their companion `.meta.json` metadata sidecars are placed directly into `./data/incoming/` where the ingestion watcher detects them and initiates the processing lifecycle.
 
 #### Option C: Drag-and-Drop via Streamlit UI
+#### Option C: Quant Trading Floor Dashboard (Streamlit UI)
 1. Navigate to [**http://localhost**](http://localhost) in your browser.
 2. Select the **Ingestion Monitor** tab.
 3. Drag and drop documents directly into the upload pane, or trigger on-demand SEC EDGAR downloads for automated ticker retrieval.
+2. Select the **INGESTION MONITOR (UI-02)** tab.
+3. Features available on the quant trading terminal:
+   - **Queue Telemetry HUD**: Real-time KPI tiles for incoming queue depth, settled corpus volume, dead-letter count, and failure rate.
+   - **SEC EDGAR Requisition Desk**: Quick-ticker selector (`NVDA`, `AAPL`, `MSFT`, `AMZN`, `GOOGL`, `META`, `TSLA`, `JPM`), form filter (`10-K`, `10-Q`, `8-K`), and day-granularity date filtering presets.
+   - **Direct Intake Dropbox**: Drag-and-drop document upload (`.pdf`, `.htm`, `.html`, `.json`, `.txt`) with real-time SHA-256 calculation and companion `.meta.json` sidecar generation.
+   - **Forensic Dead-Letter Drawer**: Interactive quarantine inspector with full error traceback viewing and one-click `[↺ RE-QUEUE FILE]` retry mechanism.
 
 ### 5. Querying the Corpus
 
