@@ -121,6 +121,20 @@ class SECSettings(BaseModel):
     rate_limit_per_sec: int = Field(default=10, gt=0, description="Maximum SEC requests per second")
 
 
+class WatcherSettings(BaseModel):
+    """Drop-directory file watcher and write detection configurations."""
+
+    poll_interval_seconds: float = Field(default=1.0, gt=0.0, description="Fallback polling check interval in seconds")
+    write_detection_interval_seconds: float = Field(
+        default=1.0, gt=0.0, description="Sampling delay to detect complete file writes"
+    )
+    stability_checks: int = Field(default=2, ge=1, description="Required consecutive unchanged size readings")
+    supported_extensions: list[str] = Field(
+        default=[".pdf", ".htm", ".html", ".json", ".txt"],
+        description="Supported raw file extensions for ingestion",
+    )
+
+
 # -----------------------------------------------------------------------------
 # Root Settings Class
 # -----------------------------------------------------------------------------
@@ -136,6 +150,7 @@ class Settings(BaseModel):
     query: QuerySettings = Field(default_factory=QuerySettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     sec: SECSettings = Field(default_factory=SECSettings)
+    watcher: WatcherSettings = Field(default_factory=WatcherSettings)
 
     @classmethod
     def load(cls, config_path: str | Path | None = None) -> Settings:
@@ -182,6 +197,7 @@ class Settings(BaseModel):
         query_dict = _get_subdict("query")
         llm_dict = _get_subdict("llm")
         sec_dict = _get_subdict("sec")
+        watcher_dict = _get_subdict("watcher")
 
         # 2. Apply Environment Variable Overrides
         if env_val := os.environ.get("APP_ENV"):
@@ -239,6 +255,13 @@ class Settings(BaseModel):
         if env_val := os.environ.get("SEC_USER_AGENT"):
             sec_dict["user_agent"] = env_val
 
+        if env_val := os.environ.get("WATCHER_POLL_INTERVAL"):
+            watcher_dict["poll_interval_seconds"] = float(env_val)
+        if env_val := os.environ.get("WATCHER_WRITE_INTERVAL"):
+            watcher_dict["write_detection_interval_seconds"] = float(env_val)
+        if env_val := os.environ.get("WATCHER_STABILITY_CHECKS"):
+            watcher_dict["stability_checks"] = int(env_val)
+
         return cls(
             app=AppSettings(**app_dict),
             paths=PathSettings(**paths_dict),
@@ -247,6 +270,7 @@ class Settings(BaseModel):
             query=QuerySettings(**query_dict),
             llm=LLMSettings(**llm_dict),
             sec=SECSettings(**sec_dict),
+            watcher=WatcherSettings(**watcher_dict),
         )
 
 

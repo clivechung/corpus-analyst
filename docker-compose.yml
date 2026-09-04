@@ -34,6 +34,7 @@ services:
       - DATA_LAKE_PATH=/data/lake
     volumes:
       - ./data:/data
+      - ./src:/app/src
       - ./config:/app/config:ro
       - model_cache:/root/.cache/huggingface
     healthcheck:
