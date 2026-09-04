@@ -18,11 +18,9 @@ chunking:
   max_characters: 2000
 
 storage:
-  azure_container_name: sec-filings-lake
   provider: localfs
   local_path: /data/lake
   azure_container_name: corpus-lake
-  azurite_emulator_enabled: true
 
 query:
   host: 0.0.0.0

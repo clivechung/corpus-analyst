@@ -3,7 +3,7 @@
 > **Source PRD:** [ducklake-rag-prd.md](file:///home/cc/ws/corpus-analyst/ducklake-rag-prd.md) (Version 1.0.0)  
 > **Source PRD:** [corpus-analyst-prd.md](file:///home/cc/ws/corpus-analyst/corpus-analyst-prd.md) (Version 1.0.0)  
 > **Target Environment:** Local Docker Compose / Kubernetes (HPA-Ready) / Linux  
-> **Core Architecture:** Zero-VectorDB DuckDB Lakehouse, Azure Edge Blob / Azurite, Unstructured Adaptive Chunking, LangGraph, Ragas  
+> **Core Architecture:** Zero-VectorDB DuckDB Lakehouse, Pluggable Lakehouse Storage (LocalFS / Cloud Azure Blob), Unstructured Adaptive Chunking, LangGraph, Ragas  
 
 ---
 
@@ -18,7 +18,7 @@ flowchart TD
     end
 
     subgraph "Phase 2: Platform Topology"
-        P2["Phase 2: Basic Services in Compose\n(Nginx, Azurite EdgeBlob, Ingestion Daemon, Query API, UI)"]
+        P2["Phase 2: Basic Services in Compose\n(Nginx Ingress, LocalFS Lakehouse, Ingestion Daemon, Query API, UI)"]
     end
 
     subgraph "Phase 3: Data Ingestion"
@@ -30,7 +30,7 @@ flowchart TD
     end
 
     subgraph "Phase 5: Lakehouse Storage"
-        P5["Phase 5: Embedding & Storage\n(Pluggable Domain Embedder, Hive Parquet Sink, Azurite Sync)"]
+        P5["Phase 5: Embedding & Storage\n(Pluggable Domain Embedder, Hive Parquet Sink, Pluggable Lakehouse Storage)"]
     end
 
     subgraph "Phase 6: Retrieval & Serving"
@@ -69,15 +69,11 @@ flowchart TD
 ---
 
 ### Phase 2: Basic Services in Compose
-* **Focus**: Stand up the multi-container Docker Compose infrastructure, ingress routing, persistent volumes, and service health checks.
 * **Focus**: Stand up the multi-container Docker Compose infrastructure, ingress routing, persistent volumes, pluggable LocalFS lakehouse storage, and service health checks.
 * **Features**:
-  * **`INF-01`**: Multi-container Compose topology (`nginx`, `edgeblob`, `ingestion-runner`, `query-engine`, `streamlit`).
   * **`INF-01`**: Multi-container Compose topology (`nginx`, `ingestion-runner`, `query-engine`, `streamlit`).
   * **`INF-02`**: Nginx Ingress reverse proxy with WebSocket support and unified `/health` route.
   * **`EMB-02`**: Persistent Docker model cache volume (`model_cache:/root/.cache/huggingface`).
-  * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) and container initialization (`sec-filings-lake`).
-  * **`LAK-02` (Base)**: Azure Edge Blob container provisioning ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)) backed by host-mounted `./data/lake` and container initialization (`corpus-lake`).
   * **`LAK-02` (Base)**: Pluggable lakehouse storage architecture (`LocalStorageBackend` targeting `./data/lake` with extensible adapter for cloud Azure Blob Storage).
 * **Deliverables & Paths**:
   * [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml)
@@ -85,8 +81,6 @@ flowchart TD
   * [`docker/ingestion/Dockerfile`](file:///home/cc/ws/corpus-analyst/docker/ingestion/Dockerfile)
   * [`docker/query_engine/Dockerfile`](file:///home/cc/ws/corpus-analyst/docker/query_engine/Dockerfile)
   * [`docker/streamlit/Dockerfile`](file:///home/cc/ws/corpus-analyst/docker/streamlit/Dockerfile)
-* **Data Contracts**: Inter-container network aliases (`http://query-engine:8000`, `http://edgeblob:10000`, `http://streamlit:8501`).
-* **Verification**: `docker compose up -d` brings all 5 containers to healthy state; `curl http://localhost/health` returns 200 OK.
   * [`src/common/storage.py`](file:///home/cc/ws/corpus-analyst/src/common/storage.py)
 * **Data Contracts**: Inter-container network aliases (`http://query-engine:8000`, `http://streamlit:8501`), LocalFS storage root (`/data/lake`).
 * **Verification**: `docker compose up -d` brings all 4 containers to healthy state; `wget -qO- http://localhost/health` returns 200 OK.
@@ -124,18 +118,17 @@ flowchart TD
 ---
 
 ### Phase 5: Embedding & Lakehouse Storage
-* **Focus**: Pluggable domain embedding generation, Hive-partitioned Parquet storage, and edge blob synchronization.
+* **Focus**: Pluggable domain embedding generation, Hive-partitioned Parquet storage, and pluggable lakehouse storage integration.
 * **Features**:
   * **`EMB-01`**: Dynamic domain embedding registry (`finance`, `literature`, `general`) with batch inference and local weight caching.
   * **`LAK-01`**: Hive-partitioned Parquet sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/{chunk_batch_uuid}.parquet` with vector arrays.
-  * **`LAK-02s`**: Parquet chunk synchronization to Azure Edge Blob container (`sec-filings-lake`).
-  * **`LAK-02s`**: Parquet chunk synchronization to Azure Edge Blob container (`corpus-lake`).
+  * **`LAK-02s`**: Pluggable lakehouse storage pipeline supporting LocalFS sink and future Cloud Azure Blob sync.
 * **Deliverables & Paths**:
   * [`src/ingestion/embedder.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/embedder.py)
   * [`src/ingestion/parquet_sink.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/parquet_sink.py)
   * [`tests/test_embedder.py`](file:///home/cc/ws/corpus-analyst/tests/test_embedder.py), [`tests/test_parquet_sink.py`](file:///home/cc/ws/corpus-analyst/tests/test_parquet_sink.py)
 * **Data Contracts**: Chunks $\to$ Dense embedding vectors (`LIST<FLOAT>`) $\to$ PyArrow Parquet files partitioned by Hive date keys.
-* **Verification**: Ingested sample generates valid Parquet files readable by PyArrow; vectors have correct dimension (384/768/1024); blob sync succeeds.
+* **Verification**: Ingested sample generates valid Parquet files readable by PyArrow; vectors have correct dimension (384/768/1024); lakehouse storage write succeeds.
 
 ---
 
@@ -192,7 +185,7 @@ flowchart TD
 | **`INF-01`** | Infrastructure | Multi-Container Docker Compose Topology | Phase 2 | Critical | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) |
 | **`INF-02`** | Infrastructure | Nginx Ingress Reverse Proxy & WebSockets | Phase 2 | High | [`docker/nginx/default.conf`](file:///home/cc/ws/corpus-analyst/docker/nginx/default.conf) |
 | **`EMB-02`** | Embedding Engine | Persistent Model Cache Volume | Phase 2 | High | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) (`model_cache`) |
-| **`LAK-02`** | Lakehouse Storage | Azure Edge Blob Container Provisioning | Phase 2 | High | [`docker-compose.yml`](file:///home/cc/ws/corpus-analyst/docker-compose.yml) (`edgeblob`) |
+| **`LAK-02`** | Lakehouse Storage | Pluggable Lakehouse Storage Backend | Phase 2 | High | [`src/common/storage.py`](file:///home/cc/ws/corpus-analyst/src/common/storage.py) (`localfs` / `azure_blob`) |
 | **`ING-01`** | Ingestion & Parsing | Automated Drop-Directory Watcher | Phase 3 | High | [`src/ingestion/watcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/watcher.py) |
 | **`ING-02`** | Ingestion & Parsing | Automated SEC EDGAR Downloader | Phase 3 | Medium | [`src/ingestion/sec_fetcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/sec_fetcher.py) |
 | **`ING-05`** | Ingestion & Parsing | Processing Lifecycle & Dead-Letter Handling | Phase 3 | Medium | [`src/ingestion/watcher.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/watcher.py) |
@@ -201,7 +194,7 @@ flowchart TD
 | **`ING-04`** | Ingestion & Parsing | Secondary Recursive Token Splitter | Phase 4 | High | [`src/ingestion/splitter.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/splitter.py) |
 | **`EMB-01`** | Embedding Engine | Dynamic Domain Embedding Registry | Phase 5 | High | [`src/ingestion/embedder.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/embedder.py), [`config/config.yaml`](file:///home/cc/ws/corpus-analyst/config/config.yaml) |
 | **`LAK-01`** | Lakehouse Storage | Hive-Partitioned Parquet Sink | Phase 5 | Critical | [`src/ingestion/parquet_sink.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/parquet_sink.py) |
-| **`LAK-02s`** | Lakehouse Storage | Parquet Edge Blob Sync Pipeline | Phase 5 | High | [`src/ingestion/parquet_sink.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/parquet_sink.py) |
+| **`LAK-02s`** | Lakehouse Storage | Parquet Lakehouse Storage Pipeline | Phase 5 | High | [`src/ingestion/parquet_sink.py`](file:///home/cc/ws/corpus-analyst/src/ingestion/parquet_sink.py) |
 | **`QRY-01`** | Retrieval & Query | Native DuckDB Parquet Vector Search | Phase 6 | Critical | [`src/query_engine/duckdb_client.py`](file:///home/cc/ws/corpus-analyst/src/query_engine/duckdb_client.py) |
 | **`QRY-02`** | Retrieval & Query | Hive Partition Push-down Predicate Filtering | Phase 6 | High | [`src/query_engine/duckdb_client.py`](file:///home/cc/ws/corpus-analyst/src/query_engine/duckdb_client.py) |
 | **`QRY-03`** | Retrieval & Query | Stateless & HPA-Ready REST API | Phase 6 | High | [`src/query_engine/main.py`](file:///home/cc/ws/corpus-analyst/src/query_engine/main.py) |
@@ -243,10 +236,9 @@ flowchart TD
 * **Description**: Single-command orchestrator configuring the full microservice mesh.
 * **Services**:
   1. `nginx`: Port 80 ingress proxy.
-  2. `edgeblob`: Azurite blob emulator (Port 10000).
-  3. `ingestion-runner`: Background directory scraper and embedding sink daemon.
-  4. `query-engine`: FastAPI + DuckDB query microservice (Port 8000).
-  5. `streamlit`: Dashboard and chat UI (Port 8501).
+  2. `ingestion-runner`: Background directory scraper and embedding sink daemon.
+  3. `query-engine`: FastAPI + DuckDB query microservice (Port 8000).
+  4. `streamlit`: Dashboard and chat UI (Port 8501).
 
 #### `INF-02`: Nginx Ingress Reverse Proxy & WebSockets
 * **Description**: Unified gateway handling external client requests and internal routing.
@@ -261,12 +253,12 @@ flowchart TD
   * Shared Docker volume `model_cache` mounted to `/root/.cache/huggingface`.
   * Eliminates model weight re-downloading across container rebuilds and restarts.
 
-#### `LAK-02`: Azure Edge Blob Container Provisioning
-* **Description**: Cloud-native edge blob synchronization for remote or hybrid lakehouse deployment.
+#### `LAK-02`: Pluggable Lakehouse Storage Architecture
+* **Description**: Pluggable storage abstraction supporting LocalFS lakehouse operations with seamless extension to cloud Azure Blob Storage.
 * **Capabilities**:
-  * Edge blob container via Azure Blob Storage on IoT Edge ([`mcr.microsoft.com/azure-blob-storage`](https://hub.docker.com/r/microsoft/azure-blob-storage)).
-  * Named blob container `sec-filings-lake` persisted across container runs.
-  * Named blob container `corpus-lake` backed by host-mounted `./data/lake`.
+  * `StorageBackendProtocol` with lifecycle methods (`initialize`, `is_healthy`, `list_files`, `read_bytes`, `write_bytes`).
+  * Default `LocalStorageBackend` targeting host-mounted `./data/lake` without external emulator overhead.
+  * Pluggable `AzureBlobStorageBackend` adapter ready for cloud Azure Blob Storage deployment.
 
 ---
 
@@ -473,8 +465,10 @@ corpus-analyst/
 ├── src/
 │   ├── common/
 │   │   ├── config.py               # Phase 1: FND-02 Pydantic Settings
-│   │   └── models.py               # Phase 1: FND-02 Chunk, QueryRequest, QueryResponse
+│   │   ├── models.py               # Phase 1: FND-02 Chunk, QueryRequest, QueryResponse
+│   │   └── storage.py              # Phase 2: LAK-02 StorageBackendProtocol, LocalStorageBackend
 │   ├── ingestion/
+│   │   ├── runner.py               # Phase 2: INF-01 Ingestion Daemon Runner
 │   │   ├── watcher.py              # Phase 3: ING-01, ING-05
 │   │   ├── sec_fetcher.py          # Phase 3: ING-02
 │   │   ├── parser.py               # Phase 4: ING-03
