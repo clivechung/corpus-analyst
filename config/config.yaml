@@ -1,0 +1,41 @@
+# Multi-Domain Containerized RAG Platform Configuration
+
+app:
+  env: development
+  log_level: INFO
+  default_domain: finance
+
+paths:
+  lake_path: /data/lake
+  incoming_path: /data/incoming
+  processed_path: /data/processed
+  failed_path: /data/failed
+  model_cache_dir: /root/.cache/huggingface
+
+chunking:
+  max_chunk_tokens: 512
+  chunk_overlap_tokens: 64
+  max_characters: 2000
+
+storage:
+  azure_container_name: sec-filings-lake
+  azure_container_name: corpus-lake
+  azurite_emulator_enabled: true
+
+query:
+  host: 0.0.0.0
+  port: 8000
+  default_top_k: 5
+  similarity_threshold: 0.0
+  duckdb_path: ":memory:"
+
+llm:
+  provider: gemini
+  gemini_model: gemini-2.5-flash
+  ollama_base_url: http://localhost:11434
+  ollama_model: qwen2.5:7b
+
+sec:
+  user_agent: "CorpusAnalystAdmin admin@corpus-analyst.local"
+  rate_limit_per_sec: 10
+

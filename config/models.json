@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "default_profile": "finance",
+  "profiles": {
+    "finance": {
+      "name": "finance",
+      "model_name": "BAAI/bge-small-en-v1.5",
+      "dimension": 384,
+      "max_sequence_length": 512,
+      "batch_size": 32,
+      "normalize_embeddings": true,
+      "description": "Optimized for SEC financial reports (10-K, 10-Q, 8-K) and quantitative tables."
+    },
+    "literature": {
+      "name": "literature",
+      "model_name": "sentence-transformers/all-mpnet-base-v2",
+      "dimension": 768,
+      "max_sequence_length": 512,
+      "batch_size": 16,
+      "normalize_embeddings": true,
+      "description": "Optimized for narrative prose, literary criticism, and dense thematic structures."
+    },
+    "general": {
+      "name": "general",
+      "model_name": "BAAI/bge-large-en-v1.5",
+      "dimension": 1024,
+      "max_sequence_length": 512,
+      "batch_size": 16,
+      "normalize_embeddings": true,
+      "description": "General purpose dense embedding model for multi-domain technical documentation."
+    }
+  }
+}
+
