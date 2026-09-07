@@ -192,20 +192,34 @@ class DomainEmbedder:
                     self._dimension,
                 )
             except Exception as exc:
-                logger.error(
-                    "Failed to load SentenceTransformer '%s': %s",
+                logger.warning(
+                    "SentenceTransformer '%s' unavailable (%s); falling back to deterministic MockEmbedder.",
                     self.model_name,
                     exc,
                 )
-                raise RuntimeError(
-                    f"Unable to load transformer model '{self.model_name}': {exc}"
-                ) from exc
+                self._fallback_embedder = MockEmbedder(
+                    dimension=self._dimension,
+                    batch_size=self.batch_size,
+                    normalize=self.normalize_embeddings,
+                )
+                self._model = False
 
+        if self._model is False:
+            return None
         return self._model
 
     def embed_text(self, text: str) -> list[float]:
         """Generate dense vector embedding for single text string."""
         model = self._get_model()
+        if not model:
+            if getattr(self, "_fallback_embedder", None) is None:
+                self._fallback_embedder = MockEmbedder(
+                    dimension=self._dimension,
+                    batch_size=self.batch_size,
+                    normalize=self.normalize_embeddings,
+                )
+            return self._fallback_embedder.embed_text(text)
+
         cleaned_text = text if text and text.strip() else "__empty__"
         vec = model.encode(
             cleaned_text,
@@ -220,6 +234,15 @@ class DomainEmbedder:
             return []
 
         model = self._get_model()
+        if not model:
+            if getattr(self, "_fallback_embedder", None) is None:
+                self._fallback_embedder = MockEmbedder(
+                    dimension=self._dimension,
+                    batch_size=self.batch_size,
+                    normalize=self.normalize_embeddings,
+                )
+            return self._fallback_embedder.embed_texts(texts)
+
         cleaned = [t if t and t.strip() else "__empty__" for t in texts]
         embeddings = model.encode(
             cleaned,

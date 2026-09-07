@@ -44,10 +44,42 @@ class IngestionRunner:
     ) -> None:
         self.settings = settings or get_settings()
         self.storage_backend = storage_backend or get_storage_backend(self.settings)
-        self.lifecycle_manager = lifecycle_manager or LifecycleManager(
-            processed_dir=self.settings.paths.processed_path,
-            failed_dir=self.settings.paths.failed_path,
-        )
+        if lifecycle_manager is not None:
+            self.lifecycle_manager = lifecycle_manager
+        else:
+            embedder = None
+            sink = None
+            try:
+                from src.ingestion.embedder import get_embedding_registry
+
+                embedder = get_embedding_registry()
+            except Exception as exc:
+                logger.warning("Could not initialize embedding registry: %s", exc)
+
+            try:
+                from src.ingestion.parquet_sink import ParquetSink
+
+                sink = ParquetSink(storage_backend=self.storage_backend)
+            except Exception as exc:
+                logger.warning("Could not initialize ParquetSink: %s", exc)
+
+            try:
+                from src.ingestion.parser import DocumentParser
+
+                processor = DocumentParser(
+                    settings=self.settings,
+                    embedder=embedder,
+                    sink=sink,
+                )
+            except Exception as exc:
+                logger.warning("Could not initialize DocumentParser: %s", exc)
+                processor = None
+
+            self.lifecycle_manager = LifecycleManager(
+                processed_dir=self.settings.paths.processed_path,
+                failed_dir=self.settings.paths.failed_path,
+                processor=processor,
+            )
         self.watcher = watcher or IncomingWatcher(
             incoming_path=self.settings.paths.incoming_path,
             lifecycle_manager=self.lifecycle_manager,

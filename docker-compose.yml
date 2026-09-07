@@ -62,6 +62,7 @@ services:
       - QUERY_ENGINE_HOST=0.0.0.0
       - QUERY_ENGINE_PORT=8000
     volumes:
+      - ./src:/app/src:ro
       - ./data/lake:/data/lake:ro
       - ./config:/app/config:ro
       - model_cache:/root/.cache/huggingface

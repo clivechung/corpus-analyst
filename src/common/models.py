@@ -241,3 +241,36 @@ class QueryResponse(BaseModel):
     latency_ms: float = Field(default=0.0, description="End-to-end request latency in milliseconds")
     model_used: str = Field(default="", description="Inference model identifier")
 
+
+class SQLQueryRequest(BaseModel):
+    """Payload contract for ad-hoc read-only SQL queries."""
+
+    query: str = Field(min_length=1, description="Read-only SQL query to execute")
+    params: list[Any] = Field(default_factory=list, description="Parameterized values")
+
+
+class SQLQueryResponse(BaseModel):
+    """Response contract for executed read-only SQL queries."""
+
+    columns: list[str] = Field(default_factory=list, description="Result column names")
+    rows: list[list[Any]] = Field(default_factory=list, description="Result rows")
+    duration_ms: float = Field(default=0.0, description="Query execution duration in milliseconds")
+
+
+class EmbedRequest(BaseModel):
+    """Payload contract for text embedding endpoint."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    text: str = Field(min_length=1, description="Input text to embed")
+    domain: DomainType | str = Field(default=DomainType.FINANCE, description="Target domain profile")
+
+
+class EmbedResponse(BaseModel):
+    """Vector embedding response contract."""
+
+    text: str = Field(description="Original input text")
+    dimension: int = Field(gt=0, description="Dense vector dimension")
+    embedding: list[float] = Field(description="Computed dense vector embedding")
+
+

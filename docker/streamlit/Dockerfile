@@ -11,7 +11,10 @@ RUN pip install --no-cache-dir \
     httpx>=0.27.0 \
     pydantic>=2.7.0 \
     pyyaml>=6.0.1 \
-    typer>=0.12.0
+    typer>=0.12.0 \
+    duckdb>=1.0.0 \
+    pyarrow>=16.0.0 \
+    pandas>=2.2.0
 
 COPY . /app
 
