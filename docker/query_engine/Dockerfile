@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir \
     pydantic-settings>=2.2.0 \
     pyyaml>=6.0.1 \
     duckdb>=1.0.0 \
+    pyarrow>=16.0.0 \
+    sentence-transformers>=3.0.0 \
     httpx>=0.27.0
 
 COPY . /app

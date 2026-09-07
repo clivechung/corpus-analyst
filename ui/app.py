@@ -1,7 +1,8 @@
 """Corpus Analyst Streamlit Research Dashboard UI (Quant Trading Floor Edition).
 
-Provides interactive document analysis, chat with citations, ingestion monitoring,
-and lakehouse partition exploration.
+Provides interactive document analysis, research chat with citations (UI-01),
+ingestion monitoring (UI-02), lakehouse partition exploration & DuckDB SQL console (UI-03),
+and dynamic domain & retrieval parameter controls (UI-04).
 """
 
 from __future__ import annotations
@@ -13,7 +14,9 @@ from pathlib import Path
 import httpx
 import streamlit as st
 
+from ui.components.chat import render_research_chat_view
 from ui.components.ingestion_view import render_ingestion_monitor_view
+from ui.components.lake_explorer import render_lakehouse_explorer_view
 from ui.components.quant_theme import (
     inject_quant_theme,
     render_trading_floor_header,
@@ -35,10 +38,11 @@ inject_quant_theme()
 
 QUERY_ENGINE_URL = os.getenv("QUERY_ENGINE_URL", "http://query-engine:8000").rstrip("/")
 DATA_INCOMING_PATH = os.getenv("DATA_INCOMING_PATH", "/data/incoming")
+DATA_LAKE_PATH = os.getenv("DATA_LAKE_PATH", "/data/lake")
 
 
-def check_query_engine_health() -> dict[str, str]:
-    """Check connectivity to Query Engine API."""
+def check_query_engine_health() -> dict[str, Any]:
+    """Check connectivity and lake status from Query Engine API."""
     try:
         resp = httpx.get(f"{QUERY_ENGINE_URL}/api/v1/health", timeout=3.0)
         if resp.status_code == 200:
@@ -62,7 +66,7 @@ health_info = check_query_engine_health()
 qe_online = health_info.get("status") == "ok"
 daemon_online = check_ingestion_daemon_health()
 
-# Sidebar: Platform & Portfolio Control
+# Sidebar: Platform & Portfolio Control (UI-04)
 with st.sidebar:
     st.markdown("### ⚙️ TERMINAL CONTROLS")
     domain_choice = st.selectbox(
@@ -71,11 +75,28 @@ with st.sidebar:
         index=0,
         help="Select active domain profile for embedding model selection and partition pruning.",
     )
+
+    with st.expander("🎯 RETRIEVAL PREDICATES (UI-04)", expanded=True):
+        top_k_val = st.slider("Candidate Chunks (Top-K)", min_value=1, max_value=50, value=5)
+        sim_threshold = st.slider("Cosine Similarity Cutoff", min_value=0.0, max_value=1.0, value=0.0, step=0.05)
+        form_filter = st.selectbox(
+            "Form Type Filter",
+            options=["All", "10-K", "10-Q", "8-K", "BOOK", "MISC"],
+            index=0,
+        )
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            start_date_val = st.date_input("Filed From", value=None)
+        with col_d2:
+            end_date_val = st.date_input("Filed To", value=None)
+        is_table_val = st.checkbox("Tabular Chunks Only", value=False)
+
     st.markdown("---")
 
     st.markdown("### 📡 MESH TELEMETRY")
     if qe_online:
-        st.success(f"🟢 Query Engine: **Online** ({health_info.get('environment', 'dev')})")
+        total_files = health_info.get("total_parquet_files", 0)
+        st.success(f"🟢 Query Engine: **Online** ({total_files} Parquet files)")
     else:
         st.warning("🟡 Query Engine: **Connecting...**")
 
@@ -85,7 +106,16 @@ with st.sidebar:
         st.error("🔴 Ingestion Daemon: **Offline**")
 
     st.markdown("---")
-    st.caption("Corpus Analyst Platform // Phase 3 (Ingest Path UI-02)")
+    st.caption("Corpus Analyst Platform // Phase 6 (Stateless Vector Lakehouse)")
+
+query_params = {
+    "top_k": top_k_val,
+    "similarity_threshold": sim_threshold,
+    "form_type": None if form_filter == "All" else form_filter,
+    "start_date": start_date_val,
+    "end_date": end_date_val,
+    "is_table_only": is_table_val,
+}
 
 # Top Trading Floor Terminal Header Bar
 render_trading_floor_header(
@@ -98,8 +128,8 @@ render_trading_floor_header(
 tab_ingest, tab_chat, tab_lake, tab_settings = st.tabs(
     [
         "📥 INGESTION MONITOR (UI-02)",
-        "💬 RESEARCH CHAT",
-        "🗄️ LAKEHOUSE EXPLORER",
+        "💬 RESEARCH CHAT (UI-01)",
+        "🗄️ LAKEHOUSE EXPLORER (UI-03)",
         "🔧 SYSTEM TELEMETRY",
     ]
 )
@@ -108,67 +138,37 @@ tab_ingest, tab_chat, tab_lake, tab_settings = st.tabs(
 with tab_ingest:
     render_ingestion_monitor_view()
 
-# TAB 2: Research Chat
+# TAB 2: Research Chat with Citations (UI-01)
 with tab_chat:
-    st.subheader("Financial & Document Research Assistant")
-    st.caption("DuckDB in-process vector scan over Parquet data lake with citation attribution.")
-
-    user_query = st.text_input(
-        "Enter research question or filing query:",
-        placeholder="e.g. What were NVIDIA's Data Center revenue figures for fiscal 2024?",
+    render_research_chat_view(
+        query_engine_url=QUERY_ENGINE_URL,
+        active_domain=domain_choice,
+        query_params=query_params,
     )
-    col_submit, col_topk = st.columns([1, 4])
-    with col_submit:
-        run_query = st.button("Search & Synthesize", type="primary")
 
-    if run_query and user_query:
-        with st.spinner("Querying lakehouse..."):
-            try:
-                payload = {
-                    "question": user_query,
-                    "domain": domain_choice,
-                    "top_k": 5,
-                    "similarity_threshold": 0.0,
-                }
-                resp = httpx.post(f"{QUERY_ENGINE_URL}/api/v1/query", json=payload, timeout=10.0)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    st.markdown("### Answer")
-                    st.info(data.get("answer", "No answer generated."))
-
-                    citations = data.get("citations", [])
-                    if citations:
-                        st.markdown("### 📑 Citations")
-                        for idx, cit in enumerate(citations, 1):
-                            with st.expander(f"Citation {idx}: {cit.get('source_filename', 'Unknown')}"):
-                                st.markdown(f"**Section:** {cit.get('section', 'N/A')}")
-                                st.markdown(f"**Similarity Score:** `{cit.get('similarity_score', 0.0):.4f}`")
-                                st.markdown(f"> {cit.get('excerpt', '')}")
-                    else:
-                        st.caption("No citations returned in current phase.")
-                else:
-                    st.error(f"Query Engine error ({resp.status_code}): {resp.text}")
-            except Exception as exc:
-                st.error(f"Failed to communicate with Query Engine: {exc}")
-
-# TAB 3: Lakehouse Explorer
+# TAB 3: Lakehouse Parquet Explorer & SQL Console (UI-03)
 with tab_lake:
-    st.subheader("Hive Parquet Lakehouse Explorer")
-    st.caption("Partition hierarchy: `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/*.parquet`")
-    lake_dir = Path(os.getenv("DATA_LAKE_PATH", "/data/lake"))
-    if lake_dir.exists():
-        partitions = list(lake_dir.glob("**/*.parquet"))
-        st.metric("Total Parquet Files", len(partitions))
-    else:
-        st.caption("Lakehouse path not mounted or empty.")
+    render_lakehouse_explorer_view(
+        lake_path=DATA_LAKE_PATH,
+        query_engine_url=QUERY_ENGINE_URL,
+    )
 
 # TAB 4: System Settings & Telemetry
 with tab_settings:
     st.subheader("Environment & Model Profiles")
-    st.json({
-        "query_engine_url": QUERY_ENGINE_URL,
-        "incoming_path": DATA_INCOMING_PATH,
-        "active_domain": domain_choice,
-        "phase": "Phase 3 (UI-02 Document Ingestion Monitor & Manual Trigger)",
-        "theme": "Quant Trading Floor (Obsidian & Amber)",
-    })
+    st.json(
+        {
+            "query_engine_url": QUERY_ENGINE_URL,
+            "incoming_path": DATA_INCOMING_PATH,
+            "lake_path": DATA_LAKE_PATH,
+            "active_domain": domain_choice,
+            "active_retrieval_params": {
+                "top_k": top_k_val,
+                "similarity_threshold": sim_threshold,
+                "form_type": form_filter,
+                "is_table_only": is_table_val,
+            },
+            "phase": "Phase 6 (DuckDB Vector Search, Pruning, REST API & Quant UI)",
+            "theme": "Quant Trading Floor (Obsidian & Amber)",
+        }
+    )

@@ -51,6 +51,34 @@ class DocumentParsingError(Exception):
     pass
 
 
+class SimpleElementMetadata:
+    """Metadata envelope matching unstructured element metadata contract."""
+
+    def __init__(self, text_as_html: str | None = None) -> None:
+        self.text_as_html = text_as_html
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {}
+        if self.text_as_html:
+            d["text_as_html"] = self.text_as_html
+        return d
+
+
+class SimpleElement:
+    """Lightweight element representation matching unstructured Element protocol."""
+
+    def __init__(
+        self,
+        text: str,
+        category: str = "NarrativeText",
+        text_as_html: str | None = None,
+    ) -> None:
+        self.text = text
+        self.category = category
+        self.metadata = SimpleElementMetadata(text_as_html=text_as_html)
+
+
+
 def estimate_token_count(text: str) -> int:
     """Calculate deterministic token count estimate for chunk text.
 
@@ -366,52 +394,132 @@ class DocumentParser(DocumentProcessorProtocol):
         )
         return chunks
 
+    def _native_partition_html(self, file_path: Path) -> list[Any]:
+        """Native HTML partitioner fallback when unstructured library is missing or fails."""
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+        if not content.strip():
+            return []
+
+        elements: list[Any] = []
+        table_pattern = re.compile(r"(<table[\s\S]*?</table>)", re.IGNORECASE)
+        parts = table_pattern.split(content)
+
+        for part in parts:
+            part_str = part.strip()
+            if not part_str:
+                continue
+
+            if part_str.lower().startswith("<table"):
+                clean_text = re.sub(r"<[^>]+>", " ", part_str)
+                clean_text = re.sub(r"\s+", " ", clean_text).strip()
+                if clean_text:
+                    elements.append(
+                        SimpleElement(
+                            text=clean_text,
+                            category="Table",
+                            text_as_html=part_str,
+                        )
+                    )
+            else:
+                tag_pattern = re.compile(r"<(h[1-6]|p|li|div)[\s\S]*?>([\s\S]*?)</\1>", re.IGNORECASE)
+                matches = tag_pattern.findall(part_str)
+                if matches:
+                    for tag_name, inner in matches:
+                        clean = re.sub(r"<[^>]+>", " ", inner)
+                        clean = re.sub(r"\s+", " ", clean).strip()
+                        if not clean:
+                            continue
+                        cat = "Title" if tag_name.lower().startswith("h") else "NarrativeText"
+                        elements.append(SimpleElement(text=clean, category=cat))
+                else:
+                    clean = re.sub(r"<[^>]+>", " ", part_str)
+                    clean = re.sub(r"\s+", " ", clean).strip()
+                    if clean:
+                        elements.append(SimpleElement(text=clean, category="NarrativeText"))
+
+        return elements
+
+    def _native_partition_text(self, file_path: Path) -> list[Any]:
+        """Native plain text partitioner fallback."""
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+        paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+        elements: list[Any] = []
+        for p in paragraphs:
+            is_title = len(p) < 80 and not p.endswith((".", ",", ";", ":"))
+            cat = "Title" if is_title else "NarrativeText"
+            elements.append(SimpleElement(text=p, category=cat))
+        return elements
+
     def _partition_file(self, file_path: Path, suffix: str) -> list[Any]:
-        """Dispatch document parsing to the appropriate unstructured partitioner."""
+        """Dispatch document parsing to unstructured partitioner or native fallback."""
         if suffix in (".htm", ".html"):
-            from unstructured.partition.html import partition_html
-            return partition_html(filename=str(file_path))
+            try:
+                from unstructured.partition.html import partition_html
+                return partition_html(filename=str(file_path))
+            except Exception as exc:
+                logger.info(
+                    "unstructured.partition.html unavailable (%s); using native HTML parser fallback.",
+                    exc,
+                )
+                return self._native_partition_html(file_path)
 
         elif suffix == ".pdf":
-            from unstructured.partition.pdf import partition_pdf
             try:
-                return partition_pdf(filename=str(file_path), strategy="fast")
-            except Exception:
-                from unstructured.partition.auto import partition
-                return partition(filename=str(file_path))
+                from unstructured.partition.pdf import partition_pdf
+                try:
+                    return partition_pdf(filename=str(file_path), strategy="fast")
+                except Exception:
+                    from unstructured.partition.auto import partition
+                    return partition(filename=str(file_path))
+            except Exception as exc:
+                logger.warning("PDF partitioning failed (%s); extracting raw text fallback.", exc)
+                return self._native_partition_text(file_path)
 
         elif suffix == ".txt":
-            from unstructured.partition.text import partition_text
-            return partition_text(filename=str(file_path))
+            try:
+                from unstructured.partition.text import partition_text
+                return partition_text(filename=str(file_path))
+            except Exception as exc:
+                logger.info(
+                    "unstructured.partition.text unavailable (%s); using native text parser fallback.",
+                    exc,
+                )
+                return self._native_partition_text(file_path)
 
         elif suffix == ".json":
-            # For JSON, parse structured records and build text elements
             with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
-
-            from unstructured.documents.elements import NarrativeText, Title
 
             elements: list[Any] = []
             if isinstance(data, dict):
                 title = data.get("title") or data.get("name")
                 if title:
-                    elements.append(Title(text=str(title)))
+                    elements.append(SimpleElement(text=str(title), category="Title"))
                 content = data.get("content") or data.get("text") or data.get("body")
                 if content:
-                    elements.append(NarrativeText(text=str(content)))
+                    elements.append(SimpleElement(text=str(content), category="NarrativeText"))
                 else:
-                    elements.append(NarrativeText(text=json.dumps(data, indent=2)))
+                    elements.append(SimpleElement(text=json.dumps(data, indent=2), category="NarrativeText"))
             elif isinstance(data, list):
                 for item in data:
-                    elements.append(NarrativeText(text=str(item) if not isinstance(item, dict) else json.dumps(item)))
+                    elements.append(
+                        SimpleElement(
+                            text=str(item) if not isinstance(item, dict) else json.dumps(item),
+                            category="NarrativeText",
+                        )
+                    )
             else:
-                elements.append(NarrativeText(text=str(data)))
+                elements.append(SimpleElement(text=str(data), category="NarrativeText"))
             return elements
 
         else:
-            # Fallback to auto partitioner
-            from unstructured.partition.auto import partition
-            return partition(filename=str(file_path))
+            try:
+                from unstructured.partition.auto import partition
+                return partition(filename=str(file_path))
+            except Exception as exc:
+                logger.info("unstructured.partition.auto unavailable (%s); using text fallback.", exc)
+                return self._native_partition_text(file_path)
+
 
     def process(self, file_path: Path, metadata: DocumentMetadata | None = None) -> IngestionResult:
         """Process document conforming to DocumentProcessorProtocol.
@@ -434,7 +542,11 @@ class DocumentParser(DocumentProcessorProtocol):
 
             parquet_paths: list[str] = []
             if self.embedder is not None:
-                chunks = self.embedder.embed_chunks(chunks)
+                if hasattr(self.embedder, "get_embedder"):
+                    active_embedder = self.embedder.get_embedder(doc_meta.domain)
+                    chunks = active_embedder.embed_chunks(chunks)
+                else:
+                    chunks = self.embedder.embed_chunks(chunks)
             if self.sink is not None:
                 parquet_paths = self.sink.write_chunks(chunks)
 

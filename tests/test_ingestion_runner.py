@@ -22,9 +22,20 @@ class TestIngestionRunnerSeam(unittest.TestCase):
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.heartbeat_path = Path(self.temp_dir.name) / "healthy"
+        self.root = Path(self.temp_dir.name)
+        self.heartbeat_path = self.root / "healthy"
+        self.settings_patcher = mock.patch("src.ingestion.runner.get_settings")
+        self.mock_get_settings = self.settings_patcher.start()
+        from src.common.config import Settings
+        s = Settings()
+        s.paths.incoming_path = str(self.root / "incoming")
+        s.paths.processed_path = str(self.root / "processed")
+        s.paths.failed_path = str(self.root / "failed")
+        s.paths.lake_path = str(self.root / "lake")
+        self.mock_get_settings.return_value = s
 
     def tearDown(self) -> None:
+        self.settings_patcher.stop()
         self.temp_dir.cleanup()
 
     def test_runner_initialization_and_single_cycle(self) -> None:
