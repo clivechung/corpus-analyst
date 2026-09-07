@@ -33,29 +33,29 @@ Enterprises and researchers increasingly rely on Retrieval-Augmented Generation 
 
 ```mermaid
 flowchart TD
-    Client[Browser / Client] -->|HTTP :80| Nginx[Nginx Ingress Proxy]
+    Client["Browser / Client"] -->|"HTTP :80"| Nginx["Nginx Ingress Proxy"]
 
     subgraph "Docker Compose Infrastructure"
-        Nginx -->|/ (Port 8501)| Streamlit[Streamlit UI Service]
-        Nginx -->|/api/v1/query (Port 8000)| QueryEngine[DuckDB Query Engine API\nFastAPI / Stateless / HPA-Ready]
+        Nginx -->|"/ (Port 8501)"| Streamlit["Streamlit UI Service"]
+        Nginx -->|"/api/v1/query (Port 8000)"| QueryEngine["DuckDB Query Engine API<br/>FastAPI / Stateless / HPA-Ready"]
 
-        IncomingDir[("Incoming Drop Directory\n(/data/incoming)")] --> IngestionRunner["Ingestion Scraper Runner\n(Watchdog / Poller)"]
+        IncomingDir[("Incoming Drop Directory<br/>(/data/incoming)")] --> IngestionRunner["Ingestion Scraper Runner<br/>(Watchdog / Poller)"]
 
         IngestionRunner -->|"1. Parse & Adaptive Split"| Chunker["Unstructured + Token Splitter"]
-        Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder\n(Finance / Literature / General)"]
-        Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink\nyear=YYYY/month=MM/day=DD"]
+        Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder<br/>(Finance / Literature / General)"]
+        Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink<br/>year=YYYY/month=MM/day=DD"]
 
-        ParquetWriter --> LocalLake[("Pluggable Lakehouse Storage\n(LocalFS: /data/lake / Cloud Azure Blob)")]
+        ParquetWriter --> LocalLake[("Pluggable Lakehouse Storage<br/>(LocalFS: /data/lake / Cloud Azure Blob)")]
 
-        LocalLake -.->|Read-Only Shared Mount (:ro)| QueryEngine
+        LocalLake -.->|"Read-Only Shared Mount (:ro)"| QueryEngine
 
-        QueryEngine -->|"Day 1: Direct Gemini\nDay 2: LangGraph Agent"| LLM["Gemini API (google-genai) /\nDay 2: Local Ollama"]
-        Streamlit -->|HTTP REST| QueryEngine
+        QueryEngine -->|"Day 1: Direct Gemini<br/>Day 2: LangGraph Agent"| LLM["Gemini API (google-genai) /<br/>Day 2: Local Ollama"]
+        Streamlit -->|"HTTP REST"| QueryEngine
     end
 
     subgraph "Day 2 Evaluation & Tooling"
-        LocalMount --> RagasRunner["Ragas Golden Testset Generator & Evaluator"]
-        RagasRunner --> MetricsDashboard[("Evaluation Metrics\nFaithfulness, Relevancy, Precision")]
+        LocalLake --> RagasRunner["Ragas Golden Testset Generator & Evaluator"]
+        RagasRunner --> MetricsDashboard[("Evaluation Metrics<br/>Faithfulness, Relevancy, Precision")]
     end
 ```
 
