@@ -98,8 +98,8 @@ flowchart TD
 - [x] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Professional Quant Trading Floor Streamlit interface featuring Bloomberg/Refinitiv Obsidian & Amber aesthetics, real-time queue telemetry HUD, order-ticket SEC EDGAR requisition, drag-and-drop intake dropbox with SHA-256 validation, and dead-letter quarantine triage.
 
 #### Phase 4: Chunk (Parsing & Adaptive Splitting)
-- [ ] `ING-03`: **Structural Parsing & Table Preservation** — Document element extraction via `unstructured`, preserving headings, sections, and HTML table representations (`is_table = true`).
-- [ ] `ING-04`: **Secondary Recursive Token Splitter** — Strict token bounding (`MAX_CHUNK_TOKENS=512`) with 64-token sliding window overlap and parent lineage tracking.
+- [x] `ING-03`: **Structural Parsing & Table Preservation** — Document element extraction via `unstructured`, preserving headings, sections, and HTML table representations (`is_table = true`).
+- [x] `ING-04`: **Secondary Recursive Token Splitter** — Strict token bounding (`MAX_CHUNK_TOKENS=512`) with 64-token sliding window overlap and parent lineage tracking.
 
 #### Phase 5: Embedding & Lakehouse Storage
 - [ ] `EMB-01`: **Dynamic Domain Embedding Registry** — Pluggable runtime registry supporting Finance (`bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General models.

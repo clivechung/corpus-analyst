@@ -19,7 +19,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from src.common.config import Settings, get_settings
@@ -31,6 +31,9 @@ from src.common.models import (
     IngestionStatus,
 )
 from src.ingestion.lifecycle import DocumentProcessorProtocol, IngestionResult
+
+if TYPE_CHECKING:
+    from src.ingestion.splitter import ChunkSplitterProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -181,8 +184,18 @@ class DocumentParser(DocumentProcessorProtocol):
     Extracts headings, maintains section hierarchies, and preserves verbatim HTML table markup.
     """
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        splitter: ChunkSplitterProtocol | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
+        if splitter is not None:
+            self.splitter: ChunkSplitterProtocol | None = splitter
+        else:
+            from src.ingestion.splitter import RecursiveTokenSplitter
+
+            self.splitter = RecursiveTokenSplitter(settings=self.settings.chunking)
 
     def _resolve_metadata(self, file_path: Path, metadata: DocumentMetadata | None = None) -> DocumentMetadata:
         """Resolve companion .meta.json sidecar or generate deterministic metadata envelope."""
@@ -333,6 +346,10 @@ class DocumentParser(DocumentProcessorProtocol):
 
         if not chunks:
             raise DocumentParsingError(f"No non-empty chunks could be constructed from: {file_path.name}")
+
+        # Secondary adaptive splitting (ING-04) strictly bounding chunks to max_chunk_tokens
+        if self.splitter is not None:
+            chunks = self.splitter.split_chunks(chunks)
 
         logger.info(
             "Successfully parsed %s into %d chunks (tables: %d, section: %s)",
