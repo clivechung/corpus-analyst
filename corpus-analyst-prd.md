@@ -25,31 +25,31 @@ Build a production-ready, locally orchestratable Retrieval-Augmented Generation 
 
 ```mermaid
 flowchart TD
-    Client[Browser / User] -->|HTTP :80| Nginx[Nginx Ingress Proxy]
+    Client["Browser / User"] -->|"HTTP :80"| Nginx["Nginx Ingress Proxy"]
 
     subgraph "Docker Compose Infrastructure"
-        Nginx -->|/ (Port 8501)| Streamlit[Streamlit UI Service]
-        Nginx -->|/api/v1/query (Port 8000)| QueryEngine[DuckDB Query Engine API\nFastAPI / Stateless / HPA-Ready]
+        Nginx -->|"/ (Port 8501)"| Streamlit["Streamlit UI Service"]
+        Nginx -->|"/api/v1/query (Port 8000)"| QueryEngine["DuckDB Query Engine API<br/>FastAPI / Stateless / HPA-Ready"]
 
-        IncomingDir[("Incoming Drop Directory\n(/data/incoming)")] --> IngestionRunner["Ingestion Scraper Runner\n(Watchdog / Poller)"]
+        IncomingDir[("Incoming Drop Directory<br/>(/data/incoming)")] --> IngestionRunner["Ingestion Scraper Runner<br/>(Watchdog / Poller)"]
 
         IngestionRunner -->|"1. Parse & Adaptive Split"| Chunker["Unstructured + Token Splitter"]
-        Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder\n(Finance / Literature / General)"]
-        Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink\nyear=YYYY/month=MM/day=DD"]
+        Chunker -->|"2. Domain Embed"| Transformer["Pluggable Embedder<br/>(Finance / Literature / General)"]
+        Transformer -->|"3. Hive Partition"| ParquetWriter["Parquet Sink<br/>year=YYYY/month=MM/day=DD"]
 
-        ParquetWriter --> EdgeBlob[("Azure Edge Blob / Azurite Container\n(Storage Emulator)")]
-        ParquetWriter --> LocalMount[("Shared Lakehouse Volume\n(/data/lake)")]
+        ParquetWriter --> EdgeBlob[("Azure Edge Blob / Azurite Container<br/>(Storage Emulator)")]
+        ParquetWriter --> LocalMount[("Shared Lakehouse Volume<br/>(/data/lake)")]
 
-        LocalMount -.->|Read-Only Shared Mount / Blob Sync| QueryEngine
-        EdgeBlob -.->|Blob Sync / Shared Lakehouse| QueryEngine
+        LocalMount -.->|"Read-Only Shared Mount / Blob Sync"| QueryEngine
+        EdgeBlob -.->|"Blob Sync / Shared Lakehouse"| QueryEngine
 
-        QueryEngine -->|"Day 1: Direct Gemini\nDay 2: LangGraph Agent"| LLM["Gemini API (google-genai) /\nDay 2: Local Ollama"]
-        Streamlit -->|HTTP REST| QueryEngine
+        QueryEngine -->|"Day 1: Direct Gemini<br/>Day 2: LangGraph Agent"| LLM["Gemini API (google-genai) /<br/>Day 2: Local Ollama"]
+        Streamlit -->|"HTTP REST"| QueryEngine
     end
 
     subgraph "Day 2 Evaluation & Tooling"
         LocalMount --> RagasRunner["Ragas Golden Testset Generator & Evaluator"]
-        RagasRunner --> MetricsDashboard[("Evaluation Metrics\nFaithfulness, Relevancy, Precision")]
+        RagasRunner --> MetricsDashboard[("Evaluation Metrics<br/>Faithfulness, Relevancy, Precision")]
     end
 ```
 
