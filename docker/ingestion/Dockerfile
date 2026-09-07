@@ -13,7 +13,10 @@ RUN pip install --no-cache-dir \
     watchdog>=4.0.0 \
     httpx>=0.27.0 \
     typer>=0.12.0 \
-    azure-storage-blob>=12.19.0
+    azure-storage-blob>=12.19.0 \
+    "unstructured>=0.14.0" \
+    beautifulsoup4 \
+    lxml
 
 COPY . /app
 
