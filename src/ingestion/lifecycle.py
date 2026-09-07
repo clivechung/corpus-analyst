@@ -126,6 +126,17 @@ class DefaultDocumentProcessor:
 # -----------------------------------------------------------------------------
 
 
+def get_default_processor() -> DocumentProcessorProtocol:
+    """Resolve default processor: prefers DocumentParser (ING-03) with graceful fallback."""
+    try:
+        from src.ingestion.parser import DocumentParser
+
+        return DocumentParser()
+    except Exception as exc:
+        logger.debug("DocumentParser unavailable (%s); falling back to DefaultDocumentProcessor", exc)
+        return DefaultDocumentProcessor()
+
+
 class LifecycleManager:
     """Coordinates atomic document state transitions, processed archiving, and dead-letter handling."""
 
@@ -137,7 +148,7 @@ class LifecycleManager:
     ) -> None:
         self.processed_dir = Path(processed_dir)
         self.failed_dir = Path(failed_dir)
-        self.processor = processor or DefaultDocumentProcessor()
+        self.processor = processor or get_default_processor()
 
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         self.failed_dir.mkdir(parents=True, exist_ok=True)
