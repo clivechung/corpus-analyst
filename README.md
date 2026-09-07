@@ -94,7 +94,6 @@ flowchart TD
 - [x] `ING-01`: **Automated Drop-Directory Watcher** — Background daemon using `watchdog` monitoring `/data/incoming` with complete write detection.
 - [x] `ING-02`: **Automated SEC EDGAR Downloader** — Fetcher for 10-K, 10-Q, and 8-K filings with SEC-compliant User-Agent headers and rate limiting.
 - [x] `ING-05`: **Processing Lifecycle & Dead-Letter Handling** — Atomic moves to `/data/processed/` or `/data/failed/` with structured error trace logging.
-- [ ] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Streamlit UI for drag-and-drop file uploads, queue status inspection, and on-demand SEC download triggers.
 - [x] `UI-02`: **Document Ingestion Monitor & Manual Trigger** — Professional Quant Trading Floor Streamlit interface featuring Bloomberg/Refinitiv Obsidian & Amber aesthetics, real-time queue telemetry HUD, order-ticket SEC EDGAR requisition, drag-and-drop intake dropbox with SHA-256 validation, and dead-letter quarantine triage.
 
 #### Phase 4: Chunk (Parsing & Adaptive Splitting)
@@ -102,9 +101,9 @@ flowchart TD
 - [x] `ING-04`: **Secondary Recursive Token Splitter** — Strict token bounding (`MAX_CHUNK_TOKENS=512`) with 64-token sliding window overlap and parent lineage tracking.
 
 #### Phase 5: Embedding & Lakehouse Storage
-- [ ] `EMB-01`: **Dynamic Domain Embedding Registry** — Pluggable runtime registry supporting Finance (`bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General models.
-- [ ] `LAK-01`: **Hive-Partitioned Parquet Sink** — Columnar PyArrow sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/` with dense vector arrays.
-- [ ] `LAK-02s`: **Parquet Lakehouse Storage Pipeline** — Pluggable storage pipeline writing partitioned Parquet chunks to LocalFS (`corpus-lake` root) with cloud Azure Blob extension capability.
+- [x] `EMB-01`: **Dynamic Domain Embedding Registry** — Pluggable runtime registry supporting Finance (`bge-small-en-v1.5`, `finbert`), Literature (`all-mpnet-base-v2`), and General models.
+- [x] `LAK-01`: **Hive-Partitioned Parquet Sink** — Columnar PyArrow sink writing to `/data/lake/domain={domain}/year={YYYY}/month={MM}/day={DD}/` with dense vector arrays.
+- [x] `LAK-02s`: **Parquet Lakehouse Storage Pipeline** — Pluggable storage pipeline writing partitioned Parquet chunks to LocalFS (`corpus-lake` root) with cloud Azure Blob extension capability.
 
 #### Phase 6: Retrieval & Serving (DuckDB Query Engine)
 - [ ] `QRY-01`: **Native DuckDB Parquet Vector Search** — In-process vector similarity search directly over Parquet files via `array_cosine_similarity`.

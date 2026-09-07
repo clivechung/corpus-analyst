@@ -33,6 +33,8 @@ from src.common.models import (
 from src.ingestion.lifecycle import DocumentProcessorProtocol, IngestionResult
 
 if TYPE_CHECKING:
+    from src.ingestion.embedder import EmbedderProtocol
+    from src.ingestion.parquet_sink import ParquetSinkProtocol
     from src.ingestion.splitter import ChunkSplitterProtocol
 
 logger = logging.getLogger(__name__)
@@ -188,6 +190,8 @@ class DocumentParser(DocumentProcessorProtocol):
         self,
         settings: Settings | None = None,
         splitter: ChunkSplitterProtocol | None = None,
+        embedder: EmbedderProtocol | None = None,
+        sink: ParquetSinkProtocol | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         if splitter is not None:
@@ -196,6 +200,8 @@ class DocumentParser(DocumentProcessorProtocol):
             from src.ingestion.splitter import RecursiveTokenSplitter
 
             self.splitter = RecursiveTokenSplitter(settings=self.settings.chunking)
+        self.embedder = embedder
+        self.sink = sink
 
     def _resolve_metadata(self, file_path: Path, metadata: DocumentMetadata | None = None) -> DocumentMetadata:
         """Resolve companion .meta.json sidecar or generate deterministic metadata envelope."""
@@ -425,6 +431,13 @@ class DocumentParser(DocumentProcessorProtocol):
             doc_meta = self._resolve_metadata(file_path, metadata)
             chunk_count = len(chunks)
             token_total = sum(c.token_count or 0 for c in chunks)
+
+            parquet_paths: list[str] = []
+            if self.embedder is not None:
+                chunks = self.embedder.embed_chunks(chunks)
+            if self.sink is not None:
+                parquet_paths = self.sink.write_chunks(chunks)
+
             elapsed = time.perf_counter() - start_time
 
             return IngestionResult(
@@ -433,6 +446,7 @@ class DocumentParser(DocumentProcessorProtocol):
                 metadata=doc_meta,
                 chunk_count=chunk_count,
                 token_total=token_total,
+                parquet_paths=parquet_paths,
                 duration_seconds=elapsed,
             )
         except Exception as exc:

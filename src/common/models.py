@@ -173,7 +173,11 @@ class IngestionSummary(BaseModel):
     duration_seconds: float = Field(ge=0.0, description="Processing duration in seconds")
     chunk_count: int = Field(default=0, ge=0, description="Total chunks generated")
     token_total: int = Field(default=0, ge=0, description="Total tokens across generated chunks")
+    parquet_paths: list[str] = Field(
+        default_factory=list, description="List of generated Lakehouse Parquet file paths"
+    )
     error_message: str | None = Field(default=None, description="Error detail if failed")
+
 
 
 # -----------------------------------------------------------------------------

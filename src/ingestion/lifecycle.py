@@ -49,8 +49,12 @@ class IngestionResult(BaseModel):
     metadata: DocumentMetadata | None = Field(default=None, description="Extracted or matched document metadata")
     chunk_count: int = Field(default=0, ge=0, description="Total chunks generated")
     token_total: int = Field(default=0, ge=0, description="Total tokens extracted")
+    parquet_paths: list[str] = Field(
+        default_factory=list, description="Lakehouse Parquet files generated"
+    )
     duration_seconds: float = Field(default=0.0, ge=0.0, description="Processing duration in seconds")
     error_message: str | None = Field(default=None, description="Error details if unsuccessful")
+
 
 
 @runtime_checkable
@@ -251,6 +255,7 @@ class LifecycleManager:
                 duration_seconds=duration,
                 chunk_count=result.chunk_count,
                 token_total=result.token_total,
+                parquet_paths=result.parquet_paths,
             )
             logger.info(
                 "Ingestion successfully completed for %s in %.3fs (chunks: %d, tokens: %d)",

@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir \
     httpx>=0.27.0 \
     typer>=0.12.0 \
     azure-storage-blob>=12.19.0 \
+    pyarrow>=16.0.0 \
+    sentence-transformers>=3.0.0 \
     "unstructured>=0.14.0" \
     beautifulsoup4 \
     lxml
