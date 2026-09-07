@@ -69,10 +69,10 @@ flowchart TD
 
 - [x] **Phase 1: Initial Directory Structure & Core Scaffolding** (2/2 features completed)
 - [x] **Phase 2: Basic Services in Compose** (4/4 features completed)
-- [ ] **Phase 3: Ingest Path** (3/4 features completed)
-- [ ] **Phase 4: Chunk (Parsing & Adaptive Splitting)** (0/2 features completed)
-- [ ] **Phase 5: Embedding & Lakehouse Storage** (0/3 features completed)
-- [ ] **Phase 6: Retrieval, Query Engine & Serving** (0/8 features completed)
+- [x] **Phase 3: Ingest Path** (4/4 features completed)
+- [x] **Phase 4: Chunk (Parsing & Adaptive Splitting)** (2/2 features completed)
+- [x] **Phase 5: Embedding & Lakehouse Storage** (3/3 features completed)
+- [ ] **Phase 6: Retrieval, Query Engine & Serving** (6/8 features completed)
 - [ ] **Phase 7: Agentic Orchestration & Re-Ranking (Day 2)** (0/4 features completed)
 - [ ] **Phase 8: Evaluation & CI/CD Quality Gate (Day 2)** (0/2 features completed)
 
@@ -106,14 +106,14 @@ flowchart TD
 - [x] `LAK-02s`: **Parquet Lakehouse Storage Pipeline** — Pluggable storage pipeline writing partitioned Parquet chunks to LocalFS (`corpus-lake` root) with cloud Azure Blob extension capability.
 
 #### Phase 6: Retrieval & Serving (DuckDB Query Engine)
-- [ ] `QRY-01`: **Native DuckDB Parquet Vector Search** — In-process vector similarity search directly over Parquet files via `array_cosine_similarity`.
-- [ ] `QRY-02`: **Hive Partition Push-down Predicate Filtering** — Folder pruning on `domain`, `year`, `month`, `day` and metadata predicates (`filing_date`, `is_table`).
-- [ ] `QRY-03`: **Stateless & HPA-Ready REST API** — FastAPI endpoints (`POST /api/v1/query`, `POST /api/v1/search`, `GET /healthz`) with concurrency-safe read connections.
+- [x] `QRY-01`: **Native DuckDB Parquet Vector Search** — In-process vector similarity search directly over Parquet files via `array_cosine_similarity`.
+- [x] `QRY-02`: **Hive Partition Push-down Predicate Filtering** — Folder pruning on `domain`, `year`, `month`, `day` and metadata predicates (`filing_date`, `is_table`).
+- [x] `QRY-03`: **Stateless & HPA-Ready REST API** — FastAPI endpoints (`POST /api/v1/query`, `POST /api/v1/search`, `POST /api/v1/sql`, `POST /api/v1/embed`, `GET /healthz`) with concurrency-safe read connections and mutation guards.
 - [ ] `LLM-01`: **Google Gemini Cloud Synthesis** — Grounded synthesis using `google-genai` SDK with strict context attribution and traceable citations.
 - [ ] `LLM-02`: **Ollama Local LLM Fallback** — Local inference alternative (`qwen2.5:7b`, `llama3.2`) matching cloud schema and citation contracts.
-- [ ] `UI-01`: **Interactive Research Assistant & Citations** — Streamlit chat interface with expandable citation cards (source file, section, similarity score, exact text).
-- [ ] `UI-03`: **Parquet Lakehouse Explorer & SQL Console** — Interactive partition browser, Parquet schema inspector, and embedded DuckDB SQL console.
-- [ ] `UI-04`: **Domain Profile & Model Switcher** — Sidebar controls for dynamic domain switching and retrieval hyperparameter tuning.
+- [x] `UI-01`: **Interactive Research Assistant & Citations** — Streamlit chat interface with expandable citation cards (source file, section, similarity score, exact text).
+- [x] `UI-03`: **Parquet Lakehouse Explorer & SQL Console** — Interactive partition browser, Parquet schema inspector, and embedded DuckDB SQL console with Top 10 vector search.
+- [x] `UI-04`: **Domain Profile & Model Switcher** — Sidebar controls for dynamic domain switching and retrieval hyperparameter tuning.
 
 #### Phase 7: Agentic Orchestration & Re-Ranking (Day 2)
 - [ ] `AGT-01`: **FlashRank / Cross-Encoder Re-Ranking** — Two-stage precision ranking (Top 50 candidates $\to$ Top 5 high-precision chunks).
@@ -177,11 +177,13 @@ Once the containers are running, access the interfaces:
 | **Streamlit Research UI (Direct Port)** | [**http://localhost:8501**](http://localhost:8501) | Direct UI port access. |
 | **Query Engine REST API Docs** | [**http://localhost:8000/docs**](http://localhost:8000/docs) | Interactive OpenAPI (Swagger) documentation. |
 | **Query Engine Health Endpoint** | [**http://localhost/api/v1/health**](http://localhost/api/v1/health) | Query engine liveness and metadata probe via Ingress. |
+| **Vector Search API Endpoint** | `POST http://localhost/api/v1/search` | Scored candidate retrieval without synthesis. |
+| **SQL Console API Endpoint** | `POST http://localhost/api/v1/sql` | Read-only in-process DuckDB SQL execution. |
 | **Nginx Ingress Health Probe** | [**http://localhost/health**](http://localhost/health) | Gateway health check probe (`200 OK`). |
 
 ### 4. File Drop for Document Ingestion
 
-You can ingest documents into the platform in two ways:
+You can ingest documents into the platform in three ways:
 
 #### Option A: Direct File Drop (Background Ingestion Watcher)
 Drop raw document files (PDF, HTML, JSON, TXT) directly into the host-mounted incoming directory:
@@ -215,11 +217,8 @@ python -m src.ingestion.sec_fetcher --ticker MSFT --form 8-K --start-date 2024-0
 ```
 Downloaded documents and their companion `.meta.json` metadata sidecars are placed directly into `./data/incoming/` where the ingestion watcher detects them and initiates the processing lifecycle.
 
-#### Option C: Drag-and-Drop via Streamlit UI
 #### Option C: Quant Trading Floor Dashboard (Streamlit UI)
 1. Navigate to [**http://localhost**](http://localhost) in your browser.
-2. Select the **Ingestion Monitor** tab.
-3. Drag and drop documents directly into the upload pane, or trigger on-demand SEC EDGAR downloads for automated ticker retrieval.
 2. Select the **INGESTION MONITOR (UI-02)** tab.
 3. Features available on the quant trading terminal:
    - **Queue Telemetry HUD**: Real-time KPI tiles for incoming queue depth, settled corpus volume, dead-letter count, and failure rate.
@@ -227,20 +226,43 @@ Downloaded documents and their companion `.meta.json` metadata sidecars are plac
    - **Direct Intake Dropbox**: Drag-and-drop document upload (`.pdf`, `.htm`, `.html`, `.json`, `.txt`) with real-time SHA-256 calculation and companion `.meta.json` sidecar generation.
    - **Forensic Dead-Letter Drawer**: Interactive quarantine inspector with full error traceback viewing and one-click `[↺ RE-QUEUE FILE]` retry mechanism.
 
-### 5. Querying the Corpus
+### 5. Querying the Corpus & Lakehouse Exploration
 
-#### Via Streamlit UI
+#### Via Streamlit Research Assistant (UI-01)
 Open the **Research Assistant** chat tab at [**http://localhost**](http://localhost), choose your active domain profile (`Finance`, `Literature`, or `General`), and submit your question. The assistant provides grounded answers with expandable citation cards showing exact source files, similarity scores, and excerpts.
+
+#### Via Parquet Lakehouse Explorer & DuckDB SQL Console (UI-03)
+Open the **Lakehouse Explorer** tab to inspect physical Hive partitions and run zero-database SQL queries directly over the Snappy Parquet lake:
+- **Telemetry Strip**: Real-time KPI tiles for total Parquet files, columnar lakehouse volume, indexed domains, and Hive partitions.
+- **Top 10 Vector Search**: Enter any natural language prompt (e.g., `google revenue in 2026`) to run instant vector similarity searches or click `⚡ Generate SQL` to generate ready-to-run DuckDB SIMD vector search SQL using `array_cosine_similarity`.
+- **In-Process SQL Console**: Execute arbitrary read-only analytical queries over `/data/lake/**/*.parquet` in single-digit milliseconds with mutation safety guards.
 
 #### Via Query Engine REST API
 Send retrieval or answer generation queries directly to the query engine:
 ```bash
+# Grounded synthesis with citations
 curl -X POST http://localhost/api/v1/query \
   -H "Content-Type: application/json" \
   -d '{
     "question": "What are the key risk factors described in the filings?",
     "domain": "finance",
     "top_k": 5
+  }'
+
+# Candidate chunk retrieval (search only)
+curl -X POST http://localhost/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "google revenue in 2026",
+    "domain": "finance",
+    "top_k": 5
+  }'
+
+# In-process read-only SQL execution
+curl -X POST http://localhost/api/v1/sql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "SELECT domain, year, count(*) as chunks FROM read_parquet(\"/data/lake/**/*.parquet\") GROUP BY domain, year"
   }'
 ```
 
