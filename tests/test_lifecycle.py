@@ -30,6 +30,19 @@ class DummyFailingProcessor:
         raise ValueError("Corrupt file content or unparseable tokens")
 
 
+class DummyLakehouseProcessor:
+    """Mock processor simulating Phase 5 lakehouse storage output."""
+
+    def process(self, file_path: Path, metadata: DocumentMetadata | None = None) -> IngestionResult:
+        return IngestionResult(
+            success=True,
+            status=IngestionStatus.COMPLETED,
+            chunk_count=5,
+            token_total=500,
+            parquet_paths=["/data/lake/domain=finance/year=2026/month=02/day=25/batch-1.parquet"],
+        )
+
+
 class TestLifecycleSeam(unittest.TestCase):
     """Test suite for document ingestion lifecycle and dead-letter handling."""
 
@@ -153,6 +166,22 @@ class TestLifecycleSeam(unittest.TestCase):
         self.assertIn("Corrupt file content", error_data["error_message"])
         self.assertIn("Traceback", error_data["stack_trace"])
         self.assertIn("timestamp", error_data)
+
+    def test_lifecycle_manager_propagates_parquet_paths(self) -> None:
+        """Verify LifecycleManager propagates generated parquet_paths into IngestionSummary."""
+        doc_file = self.incoming_dir / "valid_doc.htm"
+        doc_file.write_text("Valid HTML content")
+
+        manager = LifecycleManager(
+            processed_dir=self.processed_dir,
+            failed_dir=self.failed_dir,
+            processor=DummyLakehouseProcessor(),
+        )
+
+        summary = manager.handle_file(doc_file)
+        self.assertEqual(summary.status, IngestionStatus.COMPLETED)
+        self.assertEqual(len(summary.parquet_paths), 1)
+        self.assertIn("batch-1.parquet", summary.parquet_paths[0])
 
 
 if __name__ == "__main__":
